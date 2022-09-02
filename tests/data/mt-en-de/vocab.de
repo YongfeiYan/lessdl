@@ -1,0 +1,16 @@
+15 <pad> <unk> <bos> <eos>
+<pad> 0
+<unk> 0
+<bos> 0
+<eos> 0
+a 5
+b 4
+de 4
+f 4
+909 3
+1 2
+90 2
+94 2
+g 2
+hg 2
+po 2
