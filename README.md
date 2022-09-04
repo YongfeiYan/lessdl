@@ -5,7 +5,7 @@ simdltk是Simple Deep Learning Toolkit的缩写，基于PyTorch，旨在用极�
 
 # 关键接口
 ## Data
-不同任务的数据格式和处理方法都不相同，如果对数据进行抽象处理的话，会使整个代码变得极其复杂，simdltk没有针对数据抽象单独的类，复用PyTorch的Dataset，只要求返回的batch数据是dict格式，比如
+不同任务的数据格式和处理方法都不相同，如果对数据进行抽象处理的话，会使整个代码变得极其复杂，simdltk没有针对数据抽象单独的类，而是复用PyTorch的Dataset，只要求返回的batch数据是dict格式，例如
 ```python
 batch = {
     'src': src_seq,
@@ -16,7 +16,7 @@ batch = {
 在simdltk/data中提供了一些常用的数据处理类，可以方便地复用，比如TranslationDataset，根据两种语言的文本文件，构建一个Dataset。
 
 ## Model
-Model的接口是forward函数，表示模型的前向计算，函数的参数可以是batch的一个key，或者是batch，输出也要求是一个dict，比如
+Model的接口是forward函数，表示模型的前向计算，函数的参数可以是batch的key，或者是batch，输出也要求是一个dict，比如
 ```python
 def forward(self, src, src_size, tgt):
     # do something 
@@ -50,17 +50,17 @@ def train(...):
         call_callbacks_epoch_begin()
         for batch in dataset:
             call_callbacks_batch_begin()
-            model_out = forward_model(batch)
+            model_out = forward_model(batch)  # 根据batch，调用Model的forward函数
             loss = calc_loss(model_out, batch)
-            gradient_update_step()
-            call_callbacks_batch_end()
+            gradient_update_step()  # 进行优化
+            call_callbacks_batch_end()  # 统计结果、保存断点、调整学习率等
         call_callbacks_epoch_end()    
         evaluate_if_necessary()
 ```
 通过修改trainer，可以方便地修改数据、模型、以及训练的每个环节
 
 # 示例
-以transformer在IWSLT2014 de-en翻译为例, 首先下载数据
+以Transformer在IWSLT2014 de-en翻译为例
 ```bash
 # install dependencies
 bash scripts/install_libs.sh
