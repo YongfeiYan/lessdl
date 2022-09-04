@@ -7,6 +7,7 @@ MODELS = {}
 ARCH_MODEL = {}
 ARCH_FUNC = {}
 
+
 def register_model(name):
     """
     @register_model('model_name')
