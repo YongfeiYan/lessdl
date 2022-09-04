@@ -35,7 +35,7 @@ def forward(self, batch, out):
     }
 ```
 
-## Optimizer管理
+## Optimizer
 使用PyTorch的Optimizer，进行简单的包装，可以根据参数str构建需要的optimizer
 
 ## Trainer
