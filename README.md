@@ -68,7 +68,8 @@ bash scripts/install_libs.sh
 mkdir local/data
 bash examples/translation-iwslt14-en-de local/data/iwslt14
 # train
-
+bash examples/translation-iwslt14-en-de/train.sh
+# log file is: local/data/exp/iwslt14-de-en/train.log
 ```
 
 # Reference
