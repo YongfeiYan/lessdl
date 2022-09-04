@@ -292,7 +292,7 @@ class TranslationDataset(IterableDataset, BaseDataset):
     @staticmethod
     def build(args, split):
         assert args.src_language and args.tgt_language
-        assert os.path.exists(args.data_dir)
+        assert os.path.exists(args.data_dir), f'{args.data_dir} does not exist.'
         assert isinstance(split, str), split
         return TranslationDataset(args.data_dir, split, args.src_language, args.tgt_language, args.max_sent_size,
             not args.no_add_bos, not args.no_add_eos
