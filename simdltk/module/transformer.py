@@ -198,14 +198,11 @@ class TransformerEncoder(Module):
             shape: S x batch x D
         """
         output = src
-
         for i in range(self.num_layers):
             output = self.layers[i](output, src_mask=mask,
                                     src_key_padding_mask=src_key_padding_mask)
-
         if self.norm:
             output = self.norm(output)
-
         return output
 
 

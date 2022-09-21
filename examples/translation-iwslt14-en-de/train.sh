@@ -2,20 +2,26 @@
 #!/bin/bash
 set -x 
 
-export CUDA_VISIBLE_DEVICES=0
+if [ $# -ne 5 ]; then 
+    echo "args: data_dir save_dir cuda_device src_lang tgt_lang"
+    exit 1
+fi
+
 export PYTHONPATH=./
+data_dir="$1"
+exp_dir="$2"
+export CUDA_VISIBLE_DEVICES="$3"
+src_lang="$4"
+tgt_lang="$5"
 lr=5e-4
-src_lang=de
-tgt_lang=en
-exp_dir=local/data/exp/iwslt14-$src_lang-$tgt_lang
 mkdir -p $exp_dir
-# 保存运行脚本
+# keep script
 cp "$0" $exp_dir
 # run 
 python -u scripts/train.py \
     --exp-dir $exp_dir \
     --dataset translation_dataset --src-language $src_lang --tgt-language $tgt_lang \
-    --data-dir local/data/iwslt14/data-converted-en-de-raw \
+    --data-dir "$data_dir" \
     --arch transformer_iwslt_de_en --dropout 0.3 \
     --max-batch-tokens 4096 --num-workers 0 --max-samples-in-memory 100000000 --sort-key '_size' --epochs 200 \
     --log-every-n-batches 500 --grad-norm 0 \
@@ -27,7 +33,6 @@ python -u scripts/train.py \
 sleep 2
 echo 'exp_dir :' $exp_dir
 echo 'log file:' $exp_dir/train.log
-# tail -f $exp_dir/train.log
 echo 'Runing jobs'
 jobs
 disown -a

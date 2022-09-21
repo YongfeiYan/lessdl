@@ -28,6 +28,7 @@ def forward(self, src, src_size, tgt):
     }
 ```
 
+
 ## Loss
 Loss的接口是数据的一个batch和模型的前向计算的输出，输出是dict，要求有key为loss，便于后面进行梯度更新 比如
 ```python
@@ -39,6 +40,7 @@ def forward(self, batch, out):
 
 ## Optimizer
 使用PyTorch的Optimizer，进行简单的包装，可以根据参数str构建需要的optimizer
+
 
 ## Trainer
 Trainer是主要的类，包括构建数据集、Model、Loss、Optimizer、callbacks。callbacks是训练过程中使用的，用于统计每一步训练的结果、保存断点、模型评估、earlystopping等操作。

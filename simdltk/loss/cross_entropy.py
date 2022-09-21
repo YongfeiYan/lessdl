@@ -9,14 +9,6 @@ from simdltk.loss import register_loss, Loss
 from simdltk.utils import bool_flag
 
 
-# def get_perplexity(loss, base=2):
-#     if loss is None:
-#         return 0.0
-#     try:
-#         return base ** loss
-#     except OverflowError:
-#         return float("inf")
-
 
 def get_log_prob_target(batch, out):
     if 'logits' in out:

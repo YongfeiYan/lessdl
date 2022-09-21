@@ -162,6 +162,10 @@ class BasicTrainer:
         out = self.forward_model(self.model, batch)
         loss_dict = self.loss(batch, out)
         out.update(loss_dict)
+        if torch.isnan(out['loss']).any():
+            logger.warn('NaN in loss, NaN count is {}'.format(torch.sum(torch.isnan(out['loss'])).item()))
+            logger.warn('Skip batch because of NaN')
+            return out
         out['loss'].backward()
         if self.grad_clip:
             clip_grad_value_(self.model.parameters(), self.grad_clip)

@@ -239,7 +239,8 @@ class _BeamSearch:
                 # shape: (batch_size, beam_size, *)
                 expanded_backpointer = backpointer.\
                         view(batch_size, self.beam_size, *([1] * len(last_dims))).\
-                        expand(batch_size, self.beam_size, *last_dims)
+                        expand(batch_size, self.beam_size, *last_dims).\
+                        type(torch.int64)
 
                 # shape: (batch_size * beam_size, *)
                 state[key] = state_tensor.\
@@ -258,7 +259,7 @@ class _BeamSearch:
         reconstructed_predictions = [predictions[-1].unsqueeze(2)]
 
         # shape: (batch_size, beam_size)
-        cur_backpointers = backpointers[-1]
+        cur_backpointers = backpointers[-1].type(torch.int64)
 
         for timestep in range(len(predictions) - 2, 0, -1):
             # shape: (batch_size, beam_size, 1)
@@ -267,7 +268,7 @@ class _BeamSearch:
             reconstructed_predictions.append(cur_preds)
 
             # shape: (batch_size, beam_size)
-            cur_backpointers = backpointers[timestep - 1].gather(1, cur_backpointers)
+            cur_backpointers = backpointers[timestep - 1].gather(1, cur_backpointers).type(torch.int64)
 
         # shape: (batch_size, beam_size, 1)
         final_preds = predictions[0].gather(1, cur_backpointers).unsqueeze(2)
