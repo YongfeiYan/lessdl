@@ -169,25 +169,6 @@ class MultiheadAttention(Module):
                 attn_mask=attn_mask)
         return out 
 
-    # def _recurrent_forwardxx(self, query, key, value, key_padding_mask=None, attn_mask=None, static_kv=False, prev_state=None):
-    #     # key, value: S x bsz x D
-    #     # key_padding_mask: bsz x S
-    #     if static_kv:
-    #         attn, attn_weights = self.forward(query, key, value, key_padding_mask, attn_mask, static_kv, prev_state=None)
-    #         return attn, attn_weights, prev_state
-    #     new_state = {}
-    #     if 'prev_key' in prev_state:
-    #         key = torch.cat([prev_state['prev_key'].transpose(0, 1), key], dim=0)
-    #         value = torch.cat([prev_state['prev_value'].transpose(0, 1), value], dim=0)
-    #         if key_padding_mask is not None:
-    #             key_padding_mask = torch.cat([prev_state['prev_key_padding_mask'], key_padding_mask], dim=1)
-    #     new_state['prev_key'] = key.transpose(0, 1)
-    #     new_state['prev_value'] = value.transpose(0, 1)
-    #     if key_padding_mask is not None:
-    #         new_state['prev_key_padding_mask'] = key_padding_mask
-    #     attn, attn_weights = self.forward(query, key, value, key_padding_mask, attn_mask, static_kv)
-    #     return attn, attn_weights, new_state
-
     def _recurrent_forward(self, query, key, value, key_padding_mask=None,
         attn_mask=None, static_kv=False, prev_state=None):
         """
@@ -199,8 +180,6 @@ class MultiheadAttention(Module):
         """
         tgt_len, bsz, _ = query.size()
         src_len = key.size(0)
-        # TODO delete
-        # dels = {}
         # Get saved state
         static_key = prev_state.get('static_key', None)  # bsz x num_heads x S x head_dim
         static_value = prev_state.get('static_value', None)  # bsz x num_heads x S x head_dim
@@ -245,62 +224,28 @@ class MultiheadAttention(Module):
                     src_len = key.size(1)
                 new_state['prev_key'] = key.contiguous().view(bsz, self.num_heads, -1, self.head_dim)
                 new_state['prev_value'] = value.contiguous().view(bsz, self.num_heads, -1, self.head_dim)
-        # dels.update({
-        #     'linq': query, 
-        #     'link': key.transpose(0, 1).contiguous().view(-1, bsz, self.embed_dim), 
-        #     'linv': value.transpose(0, 1).contiguous().view(-1, bsz, self.embed_dim)
-        # })
 
         attn_weights = torch.bmm(query, key.transpose(1, 2))  # bsz*num_heads x T x S
-        # dels['qkt'] = attn_weights
 
-        # print('shape attn, query, key', attn_weights.shape, query.shape, key.shape)
         if attn_mask is not None:
             attn_mask = attn_mask.unsqueeze(0)  # 1 x 1 x Si+1
-            # if not static_kv:
-            #     if prev_attn_mask is not None:
-            #         # prev_attn_mask: bsz x Ti x Si -> bsz x Ti x Si+1
-            #         zero_column = torch.zeros(bsz, prev_attn_mask.size(1), 1).type_as(prev_attn_mask)
-            #         prev_attn_mask = torch.cat([prev_attn_mask, zero_column], dim=-1)
-            #         attn_mask = torch.cat([prev_attn_mask, attn_mask.repeat(bsz, 1, 1)], dim=1)  # bsz x Ti+1 x Si+1
-            #     else:
-            #         attn_mask = attn_mask.repeat(bsz, 1, 1)
-            #     new_state['prev_attn_mask'] = attn_mask
-            # print(attn_weights.shape, attn_mask.shape)
-            # attn_weights = attn_weights + attn_mask.repeat(self.num_heads, 1, 1)
             attn_weights = attn_weights + attn_mask
-        # dels['qkt attn mask'] = attn_weights
         if key_padding_mask is not None:
             # static_kv的时候, 每次调用都会传递一次key_padding_mask, 不用存储. 否则的话, 加上当前时刻的key_padding_mask
             if not static_kv:
                 if prev_key_padding_mask is not None:
                     key_padding_mask = torch.cat([prev_key_padding_mask, key_padding_mask], dim=1)
                 new_state['prev_key_padding_mask'] = key_padding_mask
-            # print('attn weights shape', attn_weights.shape, 'tgt len', tgt_len, 'src len', src_len)
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            # print('attn weights shape', attn_weights.shape, 'tgt len', tgt_len, 'src len', src_len)
             attn_weights = attn_weights.masked_fill(key_padding_mask.unsqueeze(1).unsqueeze(2).to(torch.bool), 
                 float('-inf')
             )
-            # print('attn weights shape', attn_weights.shape, 'tgt len', tgt_len, 'src len', src_len, 'key padding mask', key_padding_mask.shape)
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
-        # dels['qkt pad mask'] = attn_weights
         attn_probs = F.softmax(attn_weights, dim=-1, dtype=attn_weights.dtype)
-        # dels['softmax'] = attn_probs
-        # print(attn_probs)
         attn_probs = F.dropout(attn_probs, p=self.dropout, training=self.training)  # bsz*num_heads x tgt_len x src_len
-        # TODO: 保证pad位置不被自己修改的pad, drop掉, delete masked fill
-        # print(attn_probs)
-        # attn_probs.masked_fill_(key_padding_mask.unsqueeze(1).repeat(self.num_heads, tgt_len, 1), 0)
-        # print(attn_probs)
-        # print('dropout', self.dropout)
         if tgt_len > 1:
             raise RuntimeError()
-        # dels['dropout'] = attn_probs
         attn = torch.bmm(attn_probs, value).transpose(0, 1).contiguous().view(tgt_len, bsz, self.embed_dim)  # tgt_len x bsz*num_heads x embed_dim
-        # dels['bmm'] = attn
         attn = self.out_proj(attn)
-        # dels['linear'] = attn
-        # new_state.update(dels)
         
         return attn, attn_weights, new_state

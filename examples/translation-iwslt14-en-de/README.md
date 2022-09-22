@@ -44,3 +44,9 @@ iwslt 14 en-de: https://wit3.fbk.eu/2014-01 </br>
 training and dev set: https://drive.google.com/file/d/1GnBarJIbNgEIIDvUyKDtLmv35Qcxg6Ed/view </br>
 test: https://drive.google.com/file/d/1JyKJZbbf2hIIXe-xVwW1uqMy8LDY6qgN/view </br>
 processors: https://drive.google.com/file/d/1YNfSBwyyzaYZqWol2PYf5sTUcH1Z9f2h/view </br>
+
+# Note 
+This example is tested, the commit id: 96342488422662624ff16da4ba015e0ce21a40a5, switch to this commit if some paths are not valid anymore.
+```bash 
+git reset --hard 96342488422662624ff16da4ba015e0ce21a40a5
+```

@@ -76,8 +76,6 @@ BLEU结果:
 
 
 # Reference
-fairseq
-
-AllenNLP
-
-Read TFRecord https://github.com/vahidk/tfrecord/blob/master/tfrecord/reader.py
+fairseq </br>
+AllenNLP </br>
+[Read TFRecord](https://github.com/vahidk/tfrecord/blob/master/tfrecord/reader.py)</br>
