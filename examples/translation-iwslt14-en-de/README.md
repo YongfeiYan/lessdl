@@ -12,7 +12,7 @@ bash examples/translation-iwslt14-en-de local/data/iwslt14
 
 # Training
 ```bash
-# Ours de -> en
+# Ours de -> en, args are: data_dir exp_dir cuda_device src_lang tgt_lang
 bash examples/translation-iwslt14-en-de/train.sh local/data/iwslt14/data-converted-en-de-raw local/data/exp/iwslt14-en-de 0 de en 
 # Ours de - en, eval 
 bash examples/translation-iwslt14-en-de/predict.sh local/data/iwslt14/data-converted-en-de-raw local/data/exp/iwslt14-en-de 0 en de
@@ -20,14 +20,14 @@ bash examples/translation-iwslt14-en-de/predict.sh local/data/iwslt14/data-conve
 bash examples/translation-iwslt14-en-de/train.sh local/data/iwslt14/data-converted-en-de-raw local/data/exp/iwslt14-en-de 0 en de
 # Ours en -> de, eval 
 bash examples/translation-iwslt14-en-de/predict.sh local/data/iwslt14/data-converted-en-de-raw local/data/exp/iwslt14-en-de 0 en de
-# fairseq de -> en
+# fairseq de -> en, args are: data_dir cuda_device src_lang tgt_lang
 bash examples/translation-iwslt14-en-de/fairseq_run.sh local/data/iwslt14 0 de en
-# fairseq en -> de, args are: data_dir cuda_device src_lang tgt_lang
+# fairseq en -> de
 bash examples/translation-iwslt14-en-de/fairseq_run.sh local/data/iwslt14 0 en de
 ```
 
 
-# Results
+# BLEU Results
 | Model | de -> en | en -> de |
 | :--:  |  :--:    |   :--:   |
 | Transformer | 33.27 | 27.72 | 

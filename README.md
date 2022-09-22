@@ -65,7 +65,8 @@ def train(...):
 
 
 # 示例
-[以Transformer在IWSLT2014 de-en翻译为例](examples/translation-iwslt14-en-de/README.md), 复现结果: 
+## [Transformer在IWSLT2014上的翻译任务](examples/translation-iwslt14-en-de/README.md)
+BLEU结果: 
 | Model | de -> en | en -> de |
 | :--:  |  :--:    |   :--:   |
 | Transformer | 33.27 | 27.72 | 

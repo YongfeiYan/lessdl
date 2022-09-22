@@ -1,3 +1,7 @@
+"""
+MultiheadAttention is borrowed from fairseq and is modified
+"""
+
 import math
 import torch
 from torch.nn.init import xavier_normal_, xavier_uniform_, constant_
@@ -165,24 +169,24 @@ class MultiheadAttention(Module):
                 attn_mask=attn_mask)
         return out 
 
-    def _recurrent_forwardxx(self, query, key, value, key_padding_mask=None, attn_mask=None, static_kv=False, prev_state=None):
-        # key, value: S x bsz x D
-        # key_padding_mask: bsz x S
-        if static_kv:
-            attn, attn_weights = self.forward(query, key, value, key_padding_mask, attn_mask, static_kv, prev_state=None)
-            return attn, attn_weights, prev_state
-        new_state = {}
-        if 'prev_key' in prev_state:
-            key = torch.cat([prev_state['prev_key'].transpose(0, 1), key], dim=0)
-            value = torch.cat([prev_state['prev_value'].transpose(0, 1), value], dim=0)
-            if key_padding_mask is not None:
-                key_padding_mask = torch.cat([prev_state['prev_key_padding_mask'], key_padding_mask], dim=1)
-        new_state['prev_key'] = key.transpose(0, 1)
-        new_state['prev_value'] = value.transpose(0, 1)
-        if key_padding_mask is not None:
-            new_state['prev_key_padding_mask'] = key_padding_mask
-        attn, attn_weights = self.forward(query, key, value, key_padding_mask, attn_mask, static_kv)
-        return attn, attn_weights, new_state
+    # def _recurrent_forwardxx(self, query, key, value, key_padding_mask=None, attn_mask=None, static_kv=False, prev_state=None):
+    #     # key, value: S x bsz x D
+    #     # key_padding_mask: bsz x S
+    #     if static_kv:
+    #         attn, attn_weights = self.forward(query, key, value, key_padding_mask, attn_mask, static_kv, prev_state=None)
+    #         return attn, attn_weights, prev_state
+    #     new_state = {}
+    #     if 'prev_key' in prev_state:
+    #         key = torch.cat([prev_state['prev_key'].transpose(0, 1), key], dim=0)
+    #         value = torch.cat([prev_state['prev_value'].transpose(0, 1), value], dim=0)
+    #         if key_padding_mask is not None:
+    #             key_padding_mask = torch.cat([prev_state['prev_key_padding_mask'], key_padding_mask], dim=1)
+    #     new_state['prev_key'] = key.transpose(0, 1)
+    #     new_state['prev_value'] = value.transpose(0, 1)
+    #     if key_padding_mask is not None:
+    #         new_state['prev_key_padding_mask'] = key_padding_mask
+    #     attn, attn_weights = self.forward(query, key, value, key_padding_mask, attn_mask, static_kv)
+    #     return attn, attn_weights, new_state
 
     def _recurrent_forward(self, query, key, value, key_padding_mask=None,
         attn_mask=None, static_kv=False, prev_state=None):
@@ -300,5 +304,3 @@ class MultiheadAttention(Module):
         # new_state.update(dels)
         
         return attn, attn_weights, new_state
-
-
