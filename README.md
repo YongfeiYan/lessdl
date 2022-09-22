@@ -65,7 +65,7 @@ def train(...):
 
 
 # 示例
-## [Transformer在IWSLT2014上的翻译任务](examples/translation-iwslt14-en-de/README.md)
+## [Machine Translation: Transformer, IWSLT2014](examples/translation-iwslt14-en-de/README.md)
 BLEU结果: 
 | Model | de -> en | en -> de |
 | :--:  |  :--:    |   :--:   |
