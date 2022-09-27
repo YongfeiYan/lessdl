@@ -16,7 +16,7 @@ def register_dataset(name):
 
 
 def get_dataset_cls(name):
-    assert name in DATASET, f'Dataset {name} is not registered.'
+    assert name in DATASET, 'Dataset {} is not registered. The following datasets are available {}'.format(name, sorted(list(DATASET.keys())))
     return DATASET[name]
 
 

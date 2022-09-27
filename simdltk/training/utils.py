@@ -323,7 +323,7 @@ def load_args(args, file, overwrite=False):
     return kwargs
 
 
-def move_to_device(batch, device):
+def move_to_device(batch, device, non_blocking=False):
     """
     将batch中非_开头key对应的value的Tensor都移动到device上
     """
@@ -332,11 +332,11 @@ def move_to_device(batch, device):
         if k.startswith('_'):
             res[k] = v
         elif isinstance(v, torch.Tensor) or isinstance(v, torch.nn.utils.rnn.PackedSequence):
-            res[k] = v.to(device)
+            res[k] = v.to(device, non_blocking=non_blocking)
         elif isinstance(v, list) and len(v) > 0 and isinstance(v[0], torch.Tensor):
-            res[k] = [vi.to(device) for vi in v]
+            res[k] = [vi.to(device, non_blocking=non_blocking) for vi in v]
         elif isinstance(v, tuple) and len(v) > 0 and isinstance(v[0], torch.Tensor):
-            res[k] = tuple(vi.to(device) for vi in v)
+            res[k] = tuple(vi.to(device, non_blocking=non_blocking) for vi in v)
         else:
             res[k] = v
     # batch = {
@@ -445,20 +445,10 @@ def get_lr_scheduler(optimizer, s):
     if s == 'none' or not s:
         return None
     method, kwargs = split_method_kwargs(s)
-    from .lr_scheduler import InverseSquareRootSchedule
+    from .lr_scheduler import InverseSquareRootSchedule, ExponentialDecayLR
     if method == 'inverse_sqrt':
         return InverseSquareRootSchedule(optimizer, **kwargs)
+    elif method == 'exponential_decay_lr':
+        return ExponentialDecayLR(optimizer, **kwargs)
     else:
         raise RuntimeError(f'{s} {kwargs}')
-
-
-
-
-
-
-
-
-
-
-
-

@@ -5,6 +5,7 @@ from copy import deepcopy, copy
 from itertools import zip_longest
 import torch
 import json
+import torch.distributed as dist
 
 from .lr_scheduler import Scheduler
 from ..metrics.classification import binary_ctr_metrics, binary_auc
@@ -25,6 +26,8 @@ def default_format_status(status):
             s.append(f'{k}:{v}')
     return ', '.join(s)
 
+# TODO: add a callback for calling functions every n epochs
+
 
 class Callback(object):
     """
@@ -37,11 +40,18 @@ class Callback(object):
     CallbackList只是用于调用一系列的Callback
     """
 
-    def __init__(self, use_counter=False):
+    def __init__(self, use_counter=False, rank=None):
+        """
+        rank: For distributed training
+        """
         self.model = None
         self.use_counter = use_counter
         self.epoch_counter = 0
         self.batch_counter = 0
+        self.rank = rank
+
+    def set_rank(self, rank):
+        self.rank = rank 
 
     def reset_train_status(self):
         pass
@@ -290,8 +300,8 @@ class LogCallback(Callback):
     """
     将多个callback的信息和训练的信息打印出来. 也把batch信息和epoch信息打印出来.
     """
-    def __init__(self, callbacks, log_every_n_batches=500, log_every_n_epochs=1):
-        super().__init__(use_counter=True)
+    def __init__(self, callbacks, log_every_n_batches=500, log_every_n_epochs=1, rank=None):
+        super().__init__(use_counter=True, rank=rank)
         self.callbacks = copy(callbacks)
         self.log_every_n_batches = log_every_n_batches
         self.log_every_n_epochs = log_every_n_epochs
@@ -317,7 +327,7 @@ class LogCallback(Callback):
     def _extract_metrics(self, metrics):
         res = {}
         for k, v in metrics.items():
-            res[k] = metrics[k][1] / metrics[k][0]
+            res[k] = v[1] / v[0]
         return res
 
     def on_train_batch_end(self, batch, logs=None):
@@ -368,16 +378,33 @@ class LogCallback(Callback):
         self.eval_batch_counter = 0
         return super().on_evaluate_begin()
 
+    def _may_reduce_status(self, status):
+        if self.rank is None:
+            return status
+        r = {}
+        for k, v in sorted(list(status.items())):
+            if isinstance(v, (int, float)):
+                # reduce all metrics 
+                logger.info('Rank {} started to reduce {}={}'.format(self.rank, k, v))
+                device = 'cuda' if torch.cuda.is_available() else 'cpu'
+                total = torch.tensor([1, v], dtype=torch.float32, device=device)
+                dist.all_reduce(total, dist.ReduceOp.SUM, async_op=False)
+                v = (total[1] / total[0]).item()
+                logger.info('Rank {} finished reduce {}={}'.format(self.rank, k, v))
+            r[k] = v
+        return r
+
     def on_evaluate_end(self, logs=None):
         # 打印出评价的logs, 并且返回相应的值
         # add output logs
-        status = self.get_evaluate_status()
+        # Only rank0 prints logs
+        status = self._may_reduce_status(self.get_evaluate_status())
         logs = logs or {}
         status.update(logs)
         message = f'Evaluation: {default_format_status(status)}'
         dup_keys = set()
         for c in self.callbacks:
-            s = c.get_evaluate_status()
+            s = self._may_reduce_status(c.get_evaluate_status())
             if not s:
                 continue
             for k, v in sorted(list(s.items())):
@@ -386,8 +413,9 @@ class LogCallback(Callback):
                 status[k] = v
             message = message + '\n' + default_format_status(s)
         if dup_keys:
-            logger.warn(f'Duplicate keys of callback evaluation status: {list(dup_keys)}')
-        logger.info(message)
+            logger.warn('Rank {} - Duplicate keys of callback evaluation status: {}'.format(self.rank, list(dup_keys)))
+        if self.rank is None or self.rank == 0:
+            logger.info(message)
 
     def reset_train_status(self):
         self.train_metrics = {}
@@ -410,9 +438,9 @@ class Checkpoint(Callback):
     """Checkpoints and best evaluation checkpoint.
     TODO: 将optimizer和lr_scheduler的状态也保存.
     """
-    def __init__(self, base_dir, callbacks, last_to_keep=1, earlystopping=10, cmp_key='loss', cmp_better='less'):
+    def __init__(self, base_dir, callbacks, last_to_keep=1, earlystopping=10, cmp_key='loss', cmp_better='less', rank=None):
         """"""
-        super().__init__(use_counter=True)
+        super().__init__(use_counter=True, rank=rank)
         self.base_dir = base_dir
         os.makedirs(base_dir, exist_ok=True)
         self.callbacks = copy(callbacks)
@@ -480,6 +508,9 @@ class Checkpoint(Callback):
             logger.info(f'stop counter: {self.stop_counter}/{self.earlystopping}')
 
     def save_checkpoint(self, best=True):
+        if self.rank is not None and self.rank > 0:
+            # save only as first worker
+            return 
         # save checkpoints and status, delete old checkpoints
         # 如果有旧的, 先进行删除
         if len(self._checkpoint_prefix) >= self.last_to_keep and self.last_to_keep > 0:
@@ -512,6 +543,10 @@ class Checkpoint(Callback):
             save_with_prefix(prefix)
 
     def load_checkpoint(self, prefix):
+        """TODO: load model on different devices
+        """
+        if self.rank is not None and self.rank > 0:
+            raise NotImplemented()
         model_pt = prefix + '.pt'
         model_status = prefix + '.json'
         logger.info(f'Load checkpoint from {model_pt}')

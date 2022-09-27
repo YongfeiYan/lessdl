@@ -152,3 +152,24 @@ class InverseSquareRootSchedule(LearningRateScheduler):
             self.lr = self.decay_factor * batch_num_total**-0.5
         self.set_lr()
         return self.lr
+
+
+class ExponentialDecayLR(LearningRateScheduler):
+    def __init__(self, optimizer: torch.optim.Optimizer, decay_rate, decay_steps, last_epoch: int = -1) -> None:
+        super().__init__(optimizer, last_epoch)
+        self.decay_rate = decay_rate
+        self.decay_steps = decay_steps
+        self.total_steps = 0
+        self.init_lr = [pg['lr'] for pg in optimizer.param_groups]
+    
+    @property
+    def lr(self):
+        return self.get_values()[0]
+
+    @overrides
+    def get_values(self):
+        return [lr * (self.decay_rate ** (self.total_steps / self.decay_steps)) for lr, _ in zip(self.init_lr, self.optimizer.param_groups)]
+
+    def step_batch(self, batch_num_total: int = 1) -> None:
+        self.total_steps += 1
+        self.step()

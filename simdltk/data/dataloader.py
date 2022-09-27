@@ -40,15 +40,17 @@ class DataLoader(torch.utils.data.DataLoader):
     """
     TODO: 按照长度排序后, 仍然可以shuffle batch
     无论是否是iterable dataset, 都要支持tokens预取然后排序
+    如果指定了max_samples_in_memory, 不对base dataset进行shuffle，先取出一定的数据，然后自己进行排序，和shuffle
+    否则，torch.utils.data.Dataloader
     """
     def __init__(self, dataset, batch_size=None, max_batch_tokens=None, 
         shuffle=False, max_samples_in_memory=0, sort_key=None, 
-        sampler=None, batch_sampler=None, num_workers=0,
+        sampler=None, batch_sampler=None, num_workers=0, 
         # collate_fn=None,
         pin_memory=False, 
         # drop_last=False, 
         timeout=0,
-        worker_init_fn=None, multiprocessing_context=None):
+        worker_init_fn=None, multiprocessing_context=None, drop_last=False):
         # if isinstance(dataset, torch.utils.data.Dataset):
         #     dataset = _IterDatasetWrapper(dataset, max_samples_in_memory, shuffle, sort_key)
         # 不再进行 shuffle, 不需要collate_fn
@@ -71,10 +73,27 @@ class DataLoader(torch.utils.data.DataLoader):
         self.max_samples_in_memory = max_samples_in_memory
         self.sort_key = sort_key
         assert sort_key is None or isinstance(sort_key, str), f'sort_key is None or str, but got {sort_key}'
+        
+        if self._not_shuffle_base_loader():
+            warnings.warn('Specified max_samples_in_memory and shuffle data in torch.utils.data.DataLoader')
+            shuffle = False
+        if sampler is not None:
+            warnings.warn('Disabled shuffle=False when sampler is specified.')
+            shuffle = False
+        if shuffle and sampler is None and not isinstance(dataset, torch.utils.data.IterableDataset):
+            # change default generator
+            warnings.warn('Using RandomSampler with default device')
+            e = torch.empty((), dtype=torch.int64).random_()
+            seed = int(e.item()) # set seed
+            generator = torch.Generator(e.device)
+            generator.manual_seed(seed)
+            sampler = torch.utils.data.RandomSampler(dataset, generator=generator)
+            shuffle = False
         self.shuffle = shuffle
-        super().__init__(dataset, batch_size, shuffle=False, sampler=sampler, batch_sampler=batch_sampler, num_workers=num_workers, 
-            collate_fn=dataset.collate,
-            pin_memory=pin_memory, drop_last=False, timeout=timeout, worker_init_fn=worker_init_fn, 
+        
+        super().__init__(dataset, batch_size, shuffle=shuffle, sampler=sampler, batch_sampler=batch_sampler, num_workers=num_workers, 
+            collate_fn=dataset.collate, 
+            pin_memory=pin_memory, drop_last=drop_last, timeout=timeout, worker_init_fn=worker_init_fn, 
             multiprocessing_context=multiprocessing_context
         )
 
@@ -133,6 +152,11 @@ class DataLoader(torch.utils.data.DataLoader):
             (self._dataset_kind == _DatasetKind.Iterable or self.sort_key):
             random.shuffle(batches)
         return batches
+    
+    def _not_shuffle_base_loader(self):
+        """Base DataLoader should not be shuffled?
+        """
+        return self.max_samples_in_memory is not None and self.max_samples_in_memory > 0
 
 
 """

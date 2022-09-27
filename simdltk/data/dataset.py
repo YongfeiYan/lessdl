@@ -5,6 +5,7 @@ from torch.utils.data import Dataset, IterableDataset, get_worker_info
 from torch.utils.data.dataloader import default_collate
 from functools import partial, update_wrapper
 from itertools import zip_longest
+from torchvision import datasets, transforms
 
 from simdltk.data.vocab import Vocab
 from simdltk.data import register_dataset
@@ -343,3 +344,32 @@ class FilesDataset(IterableDataset):
     @staticmethod
     def build(args, split=None):
         raise NotImplementedError()
+
+
+@register_dataset('imagenet_dataset')
+class ImageNetDataset(datasets.ImageFolder):
+    def __init__(self, dir, img_resize=256, img_crop=224) -> None:
+        super().__init__()
+        self.dir = dir
+        self.img_resize = img_resize
+        self.img_crop = img_crop
+        super().__init__(dir,
+            transforms.Compose([
+                transforms.Resize(img_resize),
+                transforms.CenterCrop(img_crop),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ])
+        )
+    
+    @staticmethod
+    def add_args(parser, arglist=None):
+        parser.add_argument('--data-dir', type=str, required=True)
+        parser.add_argument('--img-resize', type=int, default=256)
+        parser.add_argument('--img-crop', type=int, default=224)
+
+    @staticmethod
+    def build(args, split=None):
+        data_dir = os.path.join(args.data_dir, split)
+        return ImageNetDataset(data_dir, args.img_resize, args.img_crop)
+

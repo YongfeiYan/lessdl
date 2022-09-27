@@ -13,7 +13,7 @@ class BaseModel(nn.Module):
         self.args = args
     
     @staticmethod
-    def add_arguments(parser):
+    def add_args(parser, arglist=None):
         pass
 
     @classmethod

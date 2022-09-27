@@ -46,3 +46,36 @@ def glob_with_comma(pattern):
     for p in pattern:
         files.extend(glob.glob(p))
     return files
+
+
+def acquire_attributes(obj, attrs, msg):
+    """
+    Check and get attributes
+    """
+    single = False
+    if isinstance(attrs, str):
+        single = True
+        attrs = [attrs]
+    r = []
+    for a in attrs:
+        if not hasattr(obj, a):
+            raise RuntimeError('Attribute {} is not found, with message {}'.format(a, msg))
+        r.append(getattr(obj, a))
+    return r[0] if single else r
+
+
+def acquire_keys(d, keys, msg):
+    """
+    Check required keys
+    """
+    single = False
+    if isinstance(keys, str):
+        single = True
+        keys = [keys]
+    r = []
+    for k in keys:
+        if k not in d:
+            raise RuntimeError('Key {} is not found, with message {}'.format(k, msg))
+        r.append(d[k])
+    return r[0] if single else r
+

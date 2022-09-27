@@ -35,6 +35,7 @@ class LogFormatter():
         # message = message.replace('\n', '\n' + ' ' * (len(prefix) + 3))
         return "%s - %s" % (prefix, message) if message else ''
 
+
 _LOGGER_FORMAT = False
 if not _LOGGER_FORMAT:
     logging.basicConfig(level=logging.INFO)
@@ -99,9 +100,14 @@ def parse_args(parser=None, arglist=None):
 
 
 def set_random_state(seed):
+    if not seed:
+        return 
     assert isinstance(seed, int)
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        logger.warning("Using seed will turn on the CUDNN deterministic setting, which can slow down your training considerably!")
