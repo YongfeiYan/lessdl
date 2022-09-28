@@ -168,25 +168,3 @@ class NeRFDataset(BaseDataset, Dataset):
         if split == 'valid': 
             split = 'val'
         return NeRFDataset(args.data_dir, args.half_res, args.testskip, split, args.white_bkgd)
-
-
-if __name__ == '__main__':
-    import argparse 
-    from torch.utils.data import DataLoader
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--split', type=str, required=True)
-    NeRFDataset.add_args(parser)
-    args = parser.parse_args()
-    print('Args', args)
-    ds = NeRFDataset.build(args, args.split)
-    dl = DataLoader(ds, batch_size=13, shuffle=True, drop_last=False)
-    for batch in dl:
-        print('batch rays', batch['rays'].shape)
-        print('batch target', batch['target'].shape)
-        assert tuple(batch['rays'].shape[1:]) == (2, 3)
-        assert tuple(batch['target'].shape[1:]) == (3,)
-        break
-"""
-Run
-PYTHONPATH=.:examples/nerf python examples/nerf/dataset.py --split train --data-dir local/nerf_synthetic/lego --dataset-type blender --white-bkgd True
-"""

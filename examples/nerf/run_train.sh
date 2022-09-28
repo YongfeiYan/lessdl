@@ -1,4 +1,4 @@
-exp_dir=local/nerf_exp/lego_0928single-gpu
+exp_dir=local/nerf_exp/lego_batch
 data_dir=local/nerf_synthetic/lego 
 testskip=8
 epochs=15

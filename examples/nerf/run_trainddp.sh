@@ -1,11 +1,5 @@
-# debug 
-# data_dir=local/nerf_synthetic/test_dataset
-# exp_dir=local/nerf_exp/test 
-# testskip=1
-# epochs=3
-# log_batches=25
-# train 
-exp_dir=local/nerf_exp/lego_09288gpu
+
+exp_dir=local/nerf_exp/lego_gpu
 data_dir=local/nerf_synthetic/lego 
 testskip=8
 epochs=60
