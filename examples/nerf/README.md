@@ -27,7 +27,7 @@ bash examples/nerf/run_traindpp.sh
 
 ## Results 
 ### Generated example
-![Lego](logs/lego_res.gif)
+![Lego](https://pic1.imgdb.cn/item/63346ad916f2c2beb188075c.gif)
 ### Training statistics
 I tested the NeRF using Tesla V100, the training states of Lego datset are listed in the following
 
