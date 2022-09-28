@@ -1,0 +1,6 @@
+torchvision>=0.9.1
+imageio
+imageio-ffmpeg
+matplotlib
+configargparse
+opencv-python

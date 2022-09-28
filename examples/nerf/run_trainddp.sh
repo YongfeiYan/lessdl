@@ -11,15 +11,13 @@ testskip=8
 epochs=60
 log_batches=100
 
-devices=0,1,2,3,4,5,6,7,8
+devices=0,1,2,3,4,5,6,7
 batch_size=1024
-
 
 mkdir -p $exp_dir
 rm -rf $exp_dir/*
 cp $0 $exp_dir
 
-# CUDA_VISIBLE_DEVICES=$devices
 PYTHONPATH=.  python examples/nerf/trainddp.py\
     --seed 19 --exp-dir $exp_dir --epochs $epochs \
     --data-dir $data_dir --dataset nerf_dataset_blender --dataset-type blender --white-bkgd True \
@@ -37,5 +35,5 @@ sleep 3
 echo 'jobs:' 
 jobs 
 disown 
-echo 'log:' $exp_dir/run.log
-tail -f $exp_dir/run.log
+echo 'See log at :' $exp_dir/run.log
+# tail -f $exp_dir/run.log

@@ -450,7 +450,6 @@ class DDPTrainer(BasicTrainer):
         super().train()
 
     def train(self):
-        # init training 
         if not self.distributed:
             return super().train()
         assert self._dist_url, 'dist_url should be like: --dist-url tcp://127.0.0.1:PORT'
