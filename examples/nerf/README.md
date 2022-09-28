@@ -27,10 +27,8 @@ bash examples/nerf/run_traindpp.sh
 
 ## Results 
 ### Generated example
-![Lego.gif](https://pic1.imgdb.cn/item/63346ad916f2c2beb188075c.gif)
+![Lego.gif](https://user-images.githubusercontent.com/41781351/192831270-921aee61-2da1-472c-91f6-fa8513c243ce.gif)
 ### Training statistics
-![](examples/nerf/logs/lego_res.gif)
-
 I tested the NeRF using Tesla V100, the training states of Lego datset are listed in the following
 
 |       | Train Loss | Eval Loss | Epochs | Time/Epoch |
