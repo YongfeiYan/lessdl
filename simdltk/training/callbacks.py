@@ -338,7 +338,8 @@ class LogCallback(Callback):
         logs = logs or {}
         self._add_to_metrics(batch, logs, self.train_metrics)
         if self.log_every_n_batches and self.batch_counter % self.log_every_n_batches == 0:
-            logger.info(self.format_train_status())
+            info_prefix = '' if self.rank is None else 'Rank {} - '.format(self.rank)
+            logger.info(info_prefix + self.format_train_status())
             self.reset_train_status()
 
     def on_train_epoch_end(self, epoch, logs=None):

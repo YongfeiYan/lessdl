@@ -141,11 +141,6 @@ class NeRFDataset(BaseDataset, Dataset):
         print('head of rays', self.rays[:10])
         print('head of render_poses', self.render_poses[:10])
         print('None 1s target', (self.target != 1).float().sum().item(), '1s', (self.target == 1).float().sum().item())
-        # # TODO: delete 
-        # print('saving:')
-        # torch.save({'rays_rgb': self.rays_rgb}, '/tmp/my.pt')
-        # import sys 
-        # sys.exit(1)
 
     def __getitem__(self, index):
         return {

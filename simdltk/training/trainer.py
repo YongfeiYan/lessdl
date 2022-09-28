@@ -11,12 +11,14 @@ from collections import defaultdict
 import copy
 import logging
 from inspect import Parameter, signature
+import torch.multiprocessing as mp 
+import torch.distributed as dist 
 
 from simdltk.data.dataloader import DataLoader
 from simdltk.loss import get_loss_cls
 from .utils import get_optimizer, get_lr_scheduler, save_args, move_to_device
 from simdltk.utils import bool_flag
-from .callbacks import Checkpoint, CallbackList, LogCallback, LRStatCallback
+from .callbacks import Checkpoint, CallbackList, LogCallback, LRStatCallback, Callback
 from . import register_trainer
 
 
@@ -56,31 +58,30 @@ class BasicTrainer:
         """
         if self._ready:
             return 
-        train_dataset = self.args, self.train_dataset, self.callbacks 
         self._prepare_building()  
         # self.valid_loader = self._build_dataloader(valid_dataset, is_train=False)
         self._build_optimizer()
         self._build_lr_scheduler()
         self._build_loss()
+        self.train_loader = self._build_dataloader(self.train_dataset, is_train=True)
+        os.makedirs(self.args.exp_dir, exist_ok=True)
         self._build_callbacks()
         self._ready = True
-        self.train_loader = self._build_dataloader(train_dataset, is_train=True)
-        os.makedirs(self.args.exp_dir, exist_ok=True)
-    
+
     def _build_callbacks(self):
         args, callbacks, model = self.args, self._trainer_callbacks, self.model 
         # TODO: add log: max norm of gradients, grad clip and norm value, tokens/s, training time etc.
         lr_cb = LRStatCallback(optimizer=self.optimizer, lr_scheduler=self.lr_scheduler)
         callbacks.append(lr_cb)
-        log_cb = LogCallback(callbacks, 
+        log_cb = LogCallback(self.callbacks + callbacks, 
             log_every_n_batches=args.log_every_n_batches,
             log_every_n_epochs=args.log_every_n_epochs
         )
         # 总是将log callback, checkpoint callback放到最后, 打印的时候, 确保前面的callback已经计算了
         callbacks.append(log_cb)
         self.log_cb = log_cb
-        self.ckpt = Checkpoint(args.exp_dir, callbacks, last_to_keep=args.last_to_keep, earlystopping=args.earlystopping)
-        # self.callbacks = callbacks  
+        self.ckpt = Checkpoint(args.exp_dir, self.callbacks + callbacks, last_to_keep=args.last_to_keep, earlystopping=args.earlystopping)
+        # self.callbacks = callbacks
         # set model for all
         self.ckpt.set_model(self.model)
         for c in self.callbacks + callbacks:
@@ -136,7 +137,7 @@ class BasicTrainer:
     def train(self):
         self._build_trainer()
         save_args(self.args, os.path.join(self.args.exp_dir, 'kwargs.json'))
-        cb_list = CallbackList(self.callbacks + [self.ckpt])  # checkpoint only at training
+        cb_list = CallbackList(self.callbacks + self._trainer_callbacks + [self.ckpt])  # checkpoint only at training
         last = self.ckpt.restore(last=True) or -1
         if last == -1:
             logger.info('Begin to train')
@@ -150,18 +151,10 @@ class BasicTrainer:
                 break
             cb_list.on_train_epoch_begin(e)
             self.model.train()
-            # TODO delete 
-            print('ERROR')
-            train_data = defaultdict(list)
-
             for batch in self.train_loader:            
                 if cb_list.should_stop_training():
                     break
                 cb_list.on_train_batch_begin({})
-                # TODO delete 
-                for k, v in batch.items():
-                    train_data[k].append(v)
-
                 out = self.train_batch(batch, batch_counter)
                 cb_list.on_train_batch_end(batch, out)
                 batch_counter += 1
@@ -171,13 +164,6 @@ class BasicTrainer:
             cb_list.on_train_epoch_end(e, {})
             if self.args.eval_every_n_epochs and (e + 1) % self.args.eval_every_n_epochs == 0:
                 self._evaluate(self.valid_dataset, cb_list, self.predictor)
-            # TODO delete 
-            r = {}
-            for k, v in train_data.items():
-                v = torch.cat(v, 0)
-                r[k] = v
-            torch.save(r, '/tmp/e{}.pt'.format(e))
-            
         if last < self.args.epochs - 1 and e != self.args.epochs - 1:
             logger.info(f'Early stopped.')
         logger.info(f'Best evaluation {self.ckpt.cmp_key}: {self.ckpt.best_metric}')
@@ -198,58 +184,23 @@ class BasicTrainer:
         # self.model.train()
         assert self.model.training == True
         self.optimizer.zero_grad()
-        # # TODO delete 
-        # print('index', batch['index'].tolist())
-        # print('1s ratio:', (batch['target'] == 1).float().sum().item() / batch['target'].numel())
-        # print('before parameters:')
-        # before_para = list(p.clone() for p in self.model.parameters())
-        # for p in before_para:
-        #     print(p.shape, p.requires_grad, p.grad is not None, None if p.grad is None else p.grad.sum().item())
-
         batch = self.move_to_device(batch)
         out = self.forward_model(self.model, batch)
         loss_dict = self.loss(batch, out)
         out.update(loss_dict)
-        # # TODO delete 
-        # for k, v in out.items():
-        #     print(k, v.shape, v.sum().item())
-        
         if torch.isnan(out['loss']).any():
             logger.warn('NaN in loss, NaN count is {}'.format(torch.sum(torch.isnan(out['loss'])).item()))
             logger.warn('Skip batch because of NaN')
             return out
         out['loss'].backward()
-        # # TODO delete 
-        # print('after backward')
-        # for p in self.model.parameters():
-        #     print(p.shape, 'required_grad', p.requires_grad, 'grad != None', p.grad is not None, ', sum grad:', p.grad.abs().sum().item())
-        # print('model.parateters')
-        # for p in self.model.model.parameters():
-        #     print(p.shape, 'required_grad', p.requires_grad, 'grad != None', p.grad is not None, ', sum grad:', p.grad.abs().sum().item())
-        # print('model_fine.parameters')
-        # for p in self.model.model_fine.parameters():
-        #     print(p.shape, 'required_grad', p.requires_grad, 'grad != None', p.grad is not None, ', sum grad:', p.grad.abs().sum().item())
 
         if self.grad_clip:
             clip_grad_value_(self.model.parameters(), self.grad_clip)
         if self.grad_norm:
             clip_grad_norm_(self.model.parameters(), self.grad_norm)
         self.optimizer.step()
-        # # TODO delete 
-        # print('after step:')
-        # for p in self.model.parameters():
-        #     print(p.shape, ', Not None: ', p.grad is not None, ', sum grad:', p.grad.sum().item())
-
         if self.lr_scheduler is not None:
             self.lr_scheduler.step_batch(batch_counter)
-        # # TODO delete
-        # print('after parameters:')
-        # after_para = list(p.clone() for p in self.model.parameters())
-        # for p in after_para:
-        #     print(p.shape, p.requires_grad, p.grad is not None, None if p.grad is None else p.grad.sum().item()) 
-        # print('check parameters delta')
-        # for p1, p2 in zip(before_para, after_para):
-        #     print(p1.shape, p2.shape, (p1 - p2).sum().item())
 
         return out
 
@@ -288,8 +239,6 @@ class BasicTrainer:
         callbacks.set_model(self.model)
         dataloader = self._build_dataloader(dataset, is_train=False)
         self.model.eval()
-        # # TODO delete
-        # batch_counter = 0
         with torch.no_grad():
             logger.info('Begin Evaluation')
             callbacks.on_evaluate_begin()
@@ -297,20 +246,15 @@ class BasicTrainer:
                 callbacks.on_evaluate_batch_begin(batch)
                 out = self.evaluate_batch(batch, predictor)
                 callbacks.on_evaluate_batch_end(batch, out)
-                # # TODO delete
-                # batch_counter = batch_counter + 1
-                # if batch_counter % 100 == 0:
-                #     logger.info('Evaluate batch counter {}'.format(batch_counter))
             callbacks.on_evaluate_end()
             logger.info('End Evaluation')
         status = callbacks.get_evaluate_status()
         return status
-        # return {}
 
     def evaluate(self, dataset, callbacks=None, predictor=None):
         self._build_trainer()
         if callbacks is None:
-            callbacks = self.callbacks
+            callbacks = self.callbacks + self._trainer_callbacks
         else:
             callbacks = callbacks + [self.log_cb]
         predictor = predictor or self.predictor
@@ -375,25 +319,155 @@ class BasicTrainer:
         return cls(args, model, train_dataset=train_data, valid_dataset=valid_data, callbacks=callbacks)
 
 
-@register_trainer('dist_trainer')
-class DistributedTrainer(BasicTrainer):
-    def __init__(self, args, model, predictor=None, train_dataset=None, valid_dataset=None, callbacks: list = None):
-        super().__init__(args, model, predictor, train_dataset, valid_dataset, callbacks)
+# @register_trainer('dist_trainer')
+# class DistributedTrainer(BasicTrainer):
+#     def __init__(self, args, model, predictor=None, train_dataset=None, valid_dataset=None, callbacks: list = None):
+#         super().__init__(args, model, predictor, train_dataset, valid_dataset, callbacks)
 
+#     def _prepare_building(self):
+#         devices = [d for d in self.args.devices.split(',') if d]
+#         if len(devices) > 0:
+#             assert len(devices) == 1
+#             self.device = 'cuda:{}'.format(devices[0])
+#             self.model.to(self.device)
+#         else:
+#             self.device = None
+#         logger.info('Device {}'.format(self.device))
+
+#     @classmethod
+#     def add_training_args(cls, parser, arglist=None):
+#         # use devices to specify gpus instead of CUDA_VISIBLE_DEVICES
+#         super().add_training_args(parser, arglist)
+#         parser.add_argument('--devices', type=str, default='', help='0,1')
+#         parser.add_argument('--dist-url', type=str, default='')
+#         parser.add_argument('--dist-backend', type=str, default='nccl')
+
+
+class DataSamplerEpochSetter(Callback):
+    def __init__(self, dist_sampler):
+        self.dist_sampler = dist_sampler
+        super().__init__(True)
+
+    def on_train_epoch_begin(self, epoch, logs=None):
+        self.dist_sampler.set_epoch(epoch)
+        return super().on_train_epoch_begin(epoch, logs)
+
+
+class DistributedSampler(torch.utils.data.distributed.DistributedSampler):
+    """Support set default tensor type
+    """
+    def __iter__(self):
+        if self.shuffle:
+            # deterministically shuffle based on epoch and seed
+            device = torch.tensor(0.).device
+            g = torch.Generator(device=device)  
+            g.manual_seed(self.seed + self.epoch)
+            indices = torch.randperm(len(self.dataset), generator=g).tolist()
+        else:
+            indices = list(range(len(self.dataset)))
+
+        if not self.drop_last:
+            # add extra samples to make it evenly divisible
+            padding_size = self.total_size - len(indices)
+            if padding_size <= len(indices):
+                indices += indices[:padding_size]
+            else:
+                indices += (indices * math.ceil(padding_size / len(indices)))[:padding_size]
+        else:
+            # remove tail of data to make it evenly divisible.
+            indices = indices[:self.total_size]
+        assert len(indices) == self.total_size
+
+        # subsample
+        indices = indices[self.rank:self.total_size:self.num_replicas]
+        assert len(indices) == self.num_samples
+
+        return iter(indices)
+
+
+@register_trainer('ddp_trainer')
+class DDPTrainer(BasicTrainer):
+    def __init__(self, args, model, predictor=None, train_dataset=None, valid_dataset=None, callbacks: list = None, dist_url=None, dist_backend='nccl', default_tensor_type=''):
+        super().__init__(args, model, predictor, train_dataset, valid_dataset, callbacks)
+        devices = [x for x in args.devices.split(',') if x]
+        self.distributed = len(devices) > 1
+        self._rank = None
+        self._world_size = len(devices)
+        self._all_devices = devices
+        self._dist_url = dist_url
+        self._dist_backend = dist_backend
+        self._info_prefix = ''
+        self._train_data_sampler = None
+        self.default_tensor_type = default_tensor_type
+        # self.batch_size = self.batch_size * len(devices) if self.distributed else self.batch_size
+    
     def _prepare_building(self):
-        devices = [d for d in self.args.devices.split(',') if d]
-        if len(devices) > 0:
-            assert len(devices) == 1
-            self.device = 'cuda:{}'.format(devices[0])
-            self.model.to(self.device)
+        if self._rank is not None:
+            self._info_prefix = 'Rank {} - '.format(self._rank)
+            self.device = torch.device('cuda:{}'.format(self._all_devices[self._rank]))
+        elif len(self._all_devices) > 0:
+            assert len(self._all_devices) == 1, 'Only one device is support is required in non-ddp mode, but got {}'.format(self._all_devices)
+            self.device = 'cuda:{}'.format(self._all_devices[0])
         else:
             self.device = None
-        logger.info('Device {}'.format(self.device))
+        if self.default_tensor_type:
+            logger.info(self._info_prefix + 'set default tensor type to {}'.format(self.default_tensor_type))
+            torch.set_default_tensor_type(self.default_tensor_type)
+        if self.device is not None:
+            torch.cuda.set_device(self.device)
+            self.model.to(self.device)
+        logger.info(self._info_prefix + 'Device {}'.format(self.device))
+        a = torch.Tensor([0.0])
+        logger.info(self._info_prefix + 'Default device: {}, default float: {}'.format(a.device, a.dtype))
+
+    def _build_callbacks(self):
+        # Add train data sampler
+        if self.distributed:
+            assert self._train_data_sampler is not None, 'Sampler should be set before callbacks'
+            self._trainer_callbacks.append(DataSamplerEpochSetter(self._train_data_sampler))
+        # NOTE: call in BasicTrainer the setup log_callback and checkpoint checkpoint, which depends on
+        # callbacks and _trianer_callback
+        super()._build_callbacks()  
+        # Set rank for log and checkpoint callback
+        for c in self.callbacks + self._trainer_callbacks:
+            c.set_rank(self._rank)
+        self.ckpt.set_rank(self._rank)
+
+    def _build_sampler(self, dataset, shuffle, drop_last, is_train=True):
+        if self.distributed:
+            logger.warn('{} set droplast=False'.format(self._info_prefix))
+            sampler = DistributedSampler(dataset, shuffle=shuffle, drop_last=False)
+            if is_train:
+                self._train_data_sampler = sampler
+            return sampler
+        else:
+            return None
+
+    def _train_worker(self, rank):
+        self._rank = rank
+        dist.init_process_group(self._dist_backend, init_method=self._dist_url, world_size=self._world_size, rank=rank)
+        self._build_trainer()
+        super().train()
+
+    def train(self):
+        # init training 
+        if not self.distributed:
+            return super().train()
+        assert self._dist_url, 'dist_url should be like: --dist-url tcp://127.0.0.1:PORT'
+        logger.info('Launch DDP training, world_size {}, devices {}'.format(self._world_size, self._all_devices))
+        mp.spawn(self._train_worker, nprocs=len(self._all_devices))
 
     @classmethod
     def add_training_args(cls, parser, arglist=None):
         # use devices to specify gpus instead of CUDA_VISIBLE_DEVICES
         super().add_training_args(parser, arglist)
         parser.add_argument('--devices', type=str, default='', help='0,1')
-        parser.add_argument('--dist-url', type=str, default='')
+        parser.add_argument('--dist-url', type=str, default='', help='e.g. tcp://127.0.0.1:PORT')
         parser.add_argument('--dist-backend', type=str, default='nccl')
+        parser.add_argument('--default-tensor-type', type=str, default='', help='e.g. torch.cuda.FloatTensor')
+
+    @classmethod
+    def build(cls, args, model, train_data, valid_data, callbacks: list = None):
+        return cls(args, model, train_dataset=train_data, valid_dataset=valid_data, callbacks=callbacks, dist_url=args.dist_url, dist_backend=args.dist_backend,  
+            default_tensor_type=args.default_tensor_type
+        )

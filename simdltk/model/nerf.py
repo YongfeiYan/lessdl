@@ -13,9 +13,25 @@ mse2psnr = lambda x : -10. * torch.log(x) / torch.log(torch.tensor(10.))
 to8b = lambda x : (255 * np.clip(x, 0, 1)).astype(np.uint8)
 
 
+class LambdaId:
+    def __call__(self, x):
+        return x
+
+class LambdaFnXFreq:
+    def __init__(self, p_fn, freq):
+        self.p_fn = p_fn
+        self.freq = freq 
+
+    def __call__(self, x, p_fn=None, freq=None):
+        p_fn = p_fn or self.p_fn
+        freq = freq or self.freq
+        return p_fn(x * freq)
+
+
 # Positional encoding (section 5.1)
-class Embedder:
+class Embedder(nn.Module):
     def __init__(self, **kwargs):
+        super().__init__()
         self.kwargs = kwargs
         self.create_embedding_fn()
         
@@ -24,7 +40,7 @@ class Embedder:
         d = self.kwargs['input_dims']
         out_dim = 0
         if self.kwargs['include_input']:
-            embed_fns.append(lambda x : x)
+            embed_fns.append(LambdaId())
             out_dim += d
             
         max_freq = self.kwargs['max_freq_log2']
@@ -34,17 +50,23 @@ class Embedder:
             freq_bands = 2.**torch.linspace(0., max_freq, steps=N_freqs)
         else:
             freq_bands = torch.linspace(2.**0., 2.**max_freq, steps=N_freqs)
-            
-        for freq in freq_bands:
+        
+        for i, freq in enumerate(freq_bands):
+            freq = torch.nn.Parameter(freq, requires_grad=False)
+            self.register_parameter('_freq_{}'.format(i), freq)
             for p_fn in self.kwargs['periodic_fns']:
-                embed_fns.append(lambda x, p_fn=p_fn, freq=freq : p_fn(x * freq))
+                # embed_fns.append(lambda x, p_fn=p_fn, freq=freq : p_fn(x * freq))
+                embed_fns.append(LambdaFnXFreq(p_fn, freq))
                 out_dim += d
-                    
+
         self.embed_fns = embed_fns
         self.out_dim = out_dim
         
     def embed(self, inputs):
         return torch.cat([fn(inputs) for fn in self.embed_fns], -1)
+
+    def __call__(self, inputs):
+        return self.embed(inputs)
 
 
 def get_embedder(multires, i=0):
@@ -61,8 +83,9 @@ def get_embedder(multires, i=0):
     }
     
     embedder_obj = Embedder(**embed_kwargs)
-    embed = lambda x, eo=embedder_obj : eo.embed(x)
-    return embed, embedder_obj.out_dim
+    # embed = lambda x, eo=embedder_obj : eo.embed(x)
+    # return embed, embedder_obj.out_dim
+    return embedder_obj, embedder_obj.out_dim
 
 
 # Model
@@ -380,9 +403,6 @@ def render_rays(ray_batch,
         run_fn = network_fn if network_fine is None else network_fine
 #         raw = run_network(pts, fn=run_fn)
         raw = network_query_fn(pts, viewdirs, run_fn)
-        # TODO delete
-        assert run_fn is not network_fn and network_fine is not None
-
         rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 
     ret = {'rgb_map' : rgb_map, 'disp_map' : disp_map, 'acc_map' : acc_map}
@@ -565,10 +585,6 @@ class NeRFModel(BaseModel):
             all_ret[k] = torch.reshape(all_ret[k], k_sh)
         
         return all_ret
-        # k_extract = ['rgb_map', 'disp_map', 'acc_map']
-        # ret_list = [all_ret[k] for k in k_extract]
-        # ret_dict = {k : all_ret[k] for k in all_ret if k not in k_extract}
-        # return ret_list + [ret_dict]
         
     @staticmethod
     def add_args(parser, arglist=None):

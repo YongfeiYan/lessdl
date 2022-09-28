@@ -15,8 +15,6 @@ from simdltk.model.nerf import to8b
 from simdltk.training.callbacks import Callback, logger
 from simdltk.utils import bool_flag
 
-# TODO: set eval mode of model 
-
 
 def render_path(model, render_poses, gt_imgs=None, savedir=None, render_factor=0):
     """ """
@@ -79,7 +77,8 @@ class RenderCallback(Callback):
         self.render_poses = render_poses
     
     def on_evaluate_end(self, eval_logs=None):
-        if self.epoch_counter % self.render_every_epochs == 0 and self.epoch_counter:  # skip initial
+        if self.epoch_counter % self.render_every_epochs == 0 and self.epoch_counter \
+            and (self.rank is None or self.rank == 0):  # skip initial
             logger.info('Render at epoch {}'.format(self.epoch_counter))
             render_video(self.model, self.render_poses, self.exp_dir, self.epoch_counter)
         return super().on_evaluate_end(eval_logs)
@@ -101,20 +100,6 @@ def main(args, evaluate_best_ckpt=True):
     model = model_cls.build(args, train_data)
     logger.info(f'Model:\n{model}')
 
-    # device = 'cuda:{}'.format(args.devices)
-    # print('Test run model')
-    # dl = DataLoader(train_data, batch_size=13, shuffle=False)
-    # model.to(device)
-    # for batch in dl:
-    #     rays = batch['rays'].to(device)
-    #     print('forward model test')
-    #     model(rays)
-    #     break
-    # print('callback test')
-    # render_cb = RenderCallback(args.exp_dir, args.render_every_epochs, test_data.poses)  # Use test poses instead
-    # render_cb.epoch_counter = args.render_every_epochs
-    # render_cb.model = model 
-    # render_cb.on_evaluate_end()
     render_cb = RenderCallback(args.exp_dir, args.render_every_epochs, test_data.render_poses)  # Use test poses instead
     # training
     trainer_cls = get_trainer_cls(args.trainer)
@@ -131,10 +116,10 @@ def main(args, evaluate_best_ckpt=True):
         render_video(trainer.model, test_data.render_poses, args.exp_dir, 999999)
         return 
     trainer.train()
-    if evaluate_best_ckpt:
-        logger.info('Reload best checkpoint and test on dataset ...')
-        trainer.ckpt.restore(best=True)
-        trainer.evaluate(test_data)
+    # if evaluate_best_ckpt:
+    #     logger.info('Reload best checkpoint and test on dataset ...')
+    #     trainer.ckpt.restore(best=True)
+    #     trainer.evaluate(test_data)
 
 
 if __name__ == '__main__':
