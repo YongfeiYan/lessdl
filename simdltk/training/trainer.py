@@ -13,6 +13,7 @@ import logging
 from inspect import Parameter, signature
 import torch.multiprocessing as mp 
 import torch.distributed as dist 
+from torch.nn.parallel import DistributedDataParallel
 
 from simdltk.data.dataloader import DataLoader
 from simdltk.loss import get_loss_cls
@@ -26,7 +27,10 @@ logger = logging.getLogger()
 
 
 def forward_model(model, batch):
-    sig = signature(model.forward)
+    if isinstance(model, DistributedDataParallel):
+        sig = signature(model.module.forward)
+    else:
+        sig = signature(model.forward)
     feed = {}
     for k in sig.parameters:
         param = sig.parameters[k]
@@ -416,6 +420,10 @@ class DDPTrainer(BasicTrainer):
         if self.device is not None:
             torch.cuda.set_device(self.device)
             self.model.to(self.device)
+            if self.distributed:
+                gpu = int(self._all_devices[self._rank])
+                logger.info(self._info_prefix + 'use gpu {}'.format(gpu))
+                self.model = DistributedDataParallel(self.model, device_ids=[gpu])
         logger.info(self._info_prefix + 'Device {}'.format(self.device))
         a = torch.Tensor([0.0])
         logger.info(self._info_prefix + 'Default device: {}, default float: {}'.format(a.device, a.dtype))
