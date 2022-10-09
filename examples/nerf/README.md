@@ -31,11 +31,11 @@ bash examples/nerf/run_traindpp.sh
 ### Training statistics
 I tested the NeRF using Tesla V100, the training states of Lego datset are listed in the following
 
-|       | Train Loss | Eval Loss | Epochs | Time/Epoch |
-| :--:  | :--:       |    :--:   | :--:   |  :--:      |
-| 1 GPU |  0.0026    |  0.0030   | 15     |  40min     |    
-| 4 GPUs|  0.0031    |  0.0032   | 30     |  10min     |
-| 8 GPUs|  0.0032    |  0.0033   | 60     |  5min      |
+|       | Batch Size | Train Loss | Eval Loss | Epochs | Time/Epoch |
+| :--:  | :--:       | :--:       |    :--:   | :--:   |  :--:      |
+| 1 GPU |  1024x1    |  0.0026    |  0.0028   | 15     |  40min     |    
+| 4 GPUs|  256x4     |  0.0026    |  0.0028   | 15     |  14min     |
+| 8 GPUs|  128x8     |      |    |      |        |
 
 
 ## Reference

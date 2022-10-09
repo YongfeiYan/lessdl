@@ -6,7 +6,7 @@ epochs=60
 log_batches=100
 
 devices=0,1,2,3,4,5,6,7
-batch_size=1024
+batch_size=128
 
 mkdir -p $exp_dir
 rm -rf $exp_dir/*
