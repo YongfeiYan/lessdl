@@ -1,5 +1,5 @@
 
-from simdltk import set_random_state
+from simpledl import set_random_state
 from tests.utils import build_trainer, get_testdata_trainer
 
 

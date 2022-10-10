@@ -5,11 +5,11 @@ import torch
 from itertools import chain
 import copy
 
-from simdltk.data.dataset import TranslationDataset
-from simdltk.training.trainer import BasicTrainer
-from simdltk.model import get_model_cls, get_arch_arch
-from simdltk.model.transformer import Transformer
-from simdltk import parse_args
+from simpledl.data.dataset import TranslationDataset
+from simpledl.training.trainer import BasicTrainer
+from simpledl.model import get_model_cls, get_arch_arch
+from simpledl.model.transformer import Transformer
+from simpledl import parse_args
 
 
 def build_trainer(argline, rm_exp=True):

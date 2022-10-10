@@ -6,7 +6,7 @@ trainer = get_testdata_trainer(rm_exp=True)
 trainer.args.epochs = 1
 trainer.train()
 
-from simdltk.predictor.beam_search import BeamSearchPredictor
+from simpledl.predictor.beam_search import BeamSearchPredictor
 
 args = trainer.args
 args.beam_size = 10

@@ -81,8 +81,8 @@ F.dropout = drop
 
 
 ## 测试multiheadattn的参数是否都正确初始化了
-from simdltk.module.activation import MultiheadAttention
-from simdltk.module.transformer import TransformerEncoderLayer
+from simpledl.module.activation import MultiheadAttention
+from simpledl.module.transformer import TransformerEncoderLayer
 def testinit(module):
     print(module, 'id', id(module))
     for p in module.parameters():
@@ -107,8 +107,8 @@ testinit(enlayer)
 
 
 ## 构建我改写的transformer模型
-from simdltk.data.dataset import TranslationDataset
-from simdltk.model.transformer import Transformer
+from simpledl.data.dataset import TranslationDataset
+from simpledl.model.transformer import Transformer
 
 parser = argparse.ArgumentParser()
 Transformer.add_args(parser)
@@ -133,8 +133,8 @@ dsende = TranslationDataset('tests/data/mt-en-de', 'train', 'en', 'de')
 args.arch = 'transformer_iwslt_de_en'
 args.model = None
 
-# from simdltk.task import get_task_cls
-from simdltk.model import get_arch_arch, get_model_cls
+# from simpledl.task import get_task_cls
+from simpledl.model import get_arch_arch, get_model_cls
 arch = get_arch_arch(args.arch)
 arch(args)
 print('transformer models')
@@ -457,7 +457,7 @@ def compare_decoder(model, fmodel):
     print(batch)
     src, tgt = batch['src'], batch['tgt']
     ## 逐步运行transformer和fairse transformer进行检查
-    from simdltk.model.transformer import generate_square_subsequent_mask
+    from simpledl.model.transformer import generate_square_subsequent_mask
     amem = model.forward_encoder(src)
     ax, aemb = model.forward_embedding(tgt, model.decoder_embed_tokens,
             model.decoder_embed_positions, model.decoder_embed_dropout, 
@@ -500,7 +500,7 @@ def compare_model(model, fairseq_model):
     compare_decoder(model, fairseq_model)
 
 
-from simdltk.data.dataloader import DataLoader
+from simpledl.data.dataloader import DataLoader
 dl = DataLoader(dsende, batch_size=2, shuffle=False, max_samples_in_memory=1000)
 it = iter(dl)
 next(it)

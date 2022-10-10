@@ -5,8 +5,8 @@ import torch
 import math
 from torch.nn import functional as F
 
-from simdltk.loss import register_loss, Loss
-from simdltk.utils import bool_flag
+from simpledl.loss import register_loss, Loss
+from simpledl.utils import bool_flag
 
 
 

@@ -7,8 +7,8 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-from simdltk.data.dataset import register_dataset, BaseDataset
-from simdltk.utils import bool_flag
+from simpledl.data.dataset import register_dataset, BaseDataset
+from simpledl.utils import bool_flag
 
 
 def get_rays_np(H, W, K, c2w):

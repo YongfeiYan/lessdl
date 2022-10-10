@@ -4,9 +4,9 @@ from torch import nn
 from torch.nn import functional as F
 
 from .base import PCTRModel
-from simdltk.model import register_model
-from simdltk.module.embedding import build_embedding
-from simdltk.module.fm import nfm
+from simpledl.model import register_model
+from simpledl.module.embedding import build_embedding
+from simpledl.module.fm import nfm
 
 
 @register_model('DualTower')

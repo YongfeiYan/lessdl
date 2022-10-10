@@ -4,12 +4,12 @@ from torch import nn
 from torch.nn.utils.rnn import pad_packed_sequence, PackedSequence, pad_sequence
 
 from torch.nn import Linear, Sequential, ReLU
-from simdltk.model.base import BaseModel, PCTRModel
-from simdltk.module.embedding import build_embedding
-from simdltk.module.fm import nfm
-from simdltk.model import register_model, register_model_architecture
-from simdltk.module.functions import length_to_mask
-from simdltk.model.senet import PCTRSENetSingleFeature
+from simpledl.model.base import BaseModel, PCTRModel
+from simpledl.module.embedding import build_embedding
+from simpledl.module.fm import nfm
+from simpledl.model import register_model, register_model_architecture
+from simpledl.module.functions import length_to_mask
+from simpledl.model.senet import PCTRSENetSingleFeature
 
 
 @register_model('NFM')

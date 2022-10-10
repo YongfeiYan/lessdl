@@ -3,8 +3,8 @@ from torch import nn
 
 ### 用translation dataset测试cross entropy
 import argparse
-from simdltk.data import get_dataset_cls
-from simdltk.data.dataloader import DataLoader
+from simpledl.data import get_dataset_cls
+from simpledl.data.dataloader import DataLoader
 
 cls = get_dataset_cls('translation_dataset')
 parser = argparse.ArgumentParser()
@@ -18,7 +18,7 @@ args.no_add_eos = False
 ds = cls.build(args, 'train')
 dl = DataLoader(ds, batch_size=2, shuffle=True, num_workers=2, max_samples_in_memory=1000)
 
-from simdltk.loss.cross_entropy import CrossEntropy, LabelSmoothedCrossEntropy
+from simpledl.loss.cross_entropy import CrossEntropy, LabelSmoothedCrossEntropy
 class T:
     pass
 task = T()

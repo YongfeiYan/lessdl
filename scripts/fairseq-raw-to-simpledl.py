@@ -1,8 +1,8 @@
 
 """
-Convert fairseq raw dataset into simdltk readable dataset
+Convert fairseq raw dataset into simpledl readable dataset
 Usage: 
-    python fairseq-raw-to-simdltk.py raw_fairseq_dir save_dir
+    python fairseq-raw-to-simpledl.py raw_fairseq_dir save_dir
 """
 
 import os

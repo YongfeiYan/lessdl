@@ -1,4 +1,4 @@
-from simdltk.data.vocab import Vocab
+from simpledl.data.vocab import Vocab
 from collections import Counter
 
 ### 测试词表的大小

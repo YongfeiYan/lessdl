@@ -3,7 +3,7 @@ import glob
 
 from ..dataset import FilesDataset
 from .reader import example_loader
-from simdltk.utils import bool_flag, glob_with_comma
+from simpledl.utils import bool_flag, glob_with_comma
 
 
 class TFRecordDataset(FilesDataset):

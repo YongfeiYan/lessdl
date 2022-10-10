@@ -4,7 +4,7 @@
 from torch import nn
 from collections import namedtuple
 
-from simdltk.data.dataset import PairIterDataset
+from simpledl.data.dataset import PairIterDataset
 
 
 class BaseModel(nn.Module):

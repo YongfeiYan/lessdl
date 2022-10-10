@@ -2,12 +2,12 @@ import os
 import argparse
 import torch
 
-from simdltk import parse_args, logger, set_random_state
-from simdltk.predictor import get_predictor_cls
-from simdltk.training.utils import load_args, move_to_device
-from simdltk.data import get_dataset_cls
-from simdltk.data.dataloader import DataLoader
-from simdltk.model import get_model_cls, get_arch_arch
+from simpledl import parse_args, logger, set_random_state
+from simpledl.predictor import get_predictor_cls
+from simpledl.training.utils import load_args, move_to_device
+from simpledl.data import get_dataset_cls
+from simpledl.data.dataloader import DataLoader
+from simpledl.model import get_model_cls, get_arch_arch
 
 
 """

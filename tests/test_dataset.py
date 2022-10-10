@@ -2,9 +2,9 @@ import torch
 import random
 from collections import Counter
 
-from simdltk.data.vocab import Vocab
-from simdltk.data.dataset import TextDataset, IterTextDataset, BaseDataset, PairIterDataset
-from simdltk.data.dataloader import DataLoader
+from simpledl.data.vocab import Vocab
+from simpledl.data.dataset import TextDataset, IterTextDataset, BaseDataset, PairIterDataset
+from simpledl.data.dataloader import DataLoader
 
 
 ### 先创建个词表
@@ -127,7 +127,7 @@ for a, b in zip(ende, dsende):
 
 
 ### 测试translation dataset
-from simdltk.data import get_dataset_cls
+from simpledl.data import get_dataset_cls
 cls = get_dataset_cls('translation_dataset')
 args.data_dir = 'tests/data/mt-en-de'
 args.src_language = 'en'

@@ -2,12 +2,12 @@ import os
 import math
 from torch import nn
 
-from simdltk.module.transformer import Transformer as BaseTransformer, TransformerEncoder, TransformerDecoder, TransformerEncoderLayer, TransformerDecoderLayer, generate_square_subsequent_mask, generate_timestep_mask
-from simdltk.model.base import EncDecModel
-from simdltk.module.embedding import build_embedding, PositionalEmbedding
-from simdltk.model import register_model, register_model_architecture
-from simdltk.module import update_prev_state, extract_sub_state
-from simdltk.utils import bool_flag
+from simpledl.module.transformer import Transformer as BaseTransformer, TransformerEncoder, TransformerDecoder, TransformerEncoderLayer, TransformerDecoderLayer, generate_square_subsequent_mask, generate_timestep_mask
+from simpledl.model.base import EncDecModel
+from simpledl.module.embedding import build_embedding, PositionalEmbedding
+from simpledl.model import register_model, register_model_architecture
+from simpledl.module import update_prev_state, extract_sub_state
+from simpledl.utils import bool_flag
 
 DEFAULT_MAX_POSITIONS = 1024
 

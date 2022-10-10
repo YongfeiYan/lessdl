@@ -5,7 +5,7 @@ import torch
 from itertools import chain
 import copy
 
-from simdltk.data.dataset import TranslationDataset
+from simpledl.data.dataset import TranslationDataset
 
 
 parser = argparse.ArgumentParser()
@@ -25,8 +25,8 @@ test_data = TranslationDataset.build(args, 'test')
 print('train_data', train_data)
 n_lines = len(list(iter(train_data)))
 
-from simdltk.model import get_model_cls, get_arch_arch
-from simdltk.model.transformer import Transformer
+from simpledl.model import get_model_cls, get_arch_arch
+from simpledl.model.transformer import Transformer
 
 parser.add_argument('--arch', type=str)
 parser.add_argument('--model', type=str)
@@ -39,8 +39,8 @@ model = Transformer.build(args, train_data)
 
 
 accu_status = []
-from simdltk.training.trainer import BasicTrainer
-from simdltk.training.callbacks import Callback
+from simpledl.training.trainer import BasicTrainer
+from simpledl.training.callbacks import Callback
 class AccumulateCallback(Callback):
     """
     将训练和测试中出现的多个batch的记录累积成一个epoch的.
@@ -159,7 +159,7 @@ assert abs(acbloss - train_metrics[-1]['loss']) < 0.00001, (acbloss, train_metri
 
 
 # 验证恢复训练后eval的结果一致
-from simdltk.training.callbacks import default_format_status
+from simpledl.training.callbacks import default_format_status
 acb_eval = acb.get_evaluate_status()
 print('acb_eval', default_format_status(acb_eval), 'keys', list(acb_eval.keys()))
 acbloss = get_acb_loss(acb_eval)

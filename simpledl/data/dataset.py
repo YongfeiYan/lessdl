@@ -7,8 +7,8 @@ from functools import partial, update_wrapper
 from itertools import zip_longest
 from torchvision import datasets, transforms
 
-from simdltk.data.vocab import Vocab
-from simdltk.data import register_dataset
+from simpledl.data.vocab import Vocab
+from simpledl.data import register_dataset
 
 
 def collate_tokens(
