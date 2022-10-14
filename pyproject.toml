@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "simple-dl-toolkit"
+version = "0.0.2"
+authors = [
+  { name="YongfeiYan", email="yognfeiyan@pku.edu.cn" },
+]
+description = "Simple deep learning toolkit"
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/YongfeiYan/simpledl"
+"Bug Tracker" = "https://github.com/YongfeiYan/simpledl/issues"
+
+[tool.setuptools]
+packages = ["simpledl"]
