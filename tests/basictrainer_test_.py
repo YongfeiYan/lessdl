@@ -13,7 +13,7 @@ TranslationDataset.add_args(parser)
 exp_dir = '/tmp/basictrainer'
 # arg_line = f'python {__file__} --src-language en --tgt-language de --data-dir tests/data/mt-en-de'
 arg_line = f'--exp-dir {exp_dir} --src-language en --tgt-language de --data-dir tests/data/mt-en-de --arch transformer_iwslt_de_en ' \
-    f'--batch-size 3 --max-batch-tokens 0 --epochs 2'
+    f'--batch-size 3 --max-batch-tokens 0 --epochs 2  --max-samples-in-memory 1000000000'
 
 arg_line = arg_line.split()
 args, _ = parser.parse_known_args(arg_line)
@@ -126,12 +126,15 @@ if os.path.exists(exp_dir):
     shutil.rmtree(exp_dir)
 acb = AccumulateCallback(train=True, evaluate=True)
 trainer = BasicTrainer(args, model, train_dataset=train_data, valid_dataset=valid_data, callbacks=[acb])
+
 back_fn = trainer.log_cb.on_train_epoch_end
 back_log = trainer.log_cb
 trainer.log_cb.on_train_epoch_end = log_on_train_epoch_end
 
 trainer.train()
 trainer.evaluate(valid_data)
+
+
 acb_train = acb.concate(accu_status[-1])
 train_status = trainer.log_cb.get_train_status()
 print(list(acb_train.keys()))

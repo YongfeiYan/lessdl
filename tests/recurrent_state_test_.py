@@ -25,15 +25,16 @@ ma = model.decoder.layers[0].self_attn
 for batch in trainer.train_loader:
     break
 
-src = batch['src']
-tgt = batch['tgt']
+device = trainer.device
+src = batch['src'].to(device)
+tgt = batch['tgt'].to(device)
 print('tgt_len', batch['tgt_len'])
 # src = src[:, :15]
 # tgt = tgt[:, :15]
 padding_idx = trainer.train_dataset.src_vocab.pad()
-emb = PositionalEmbedding(10000, trainer.args.encoder_embed_dim, padding_idx=padding_idx)
-src_emb = emb(src).transpose(0, 1)
-tgt_emb = emb(tgt).transpose(0, 1)
+emb = PositionalEmbedding(10000, trainer.args.encoder_embed_dim, padding_idx=padding_idx).to(device)
+src_emb = emb(src).transpose(0, 1).to(trainer.device)
+tgt_emb = emb(tgt).transpose(0, 1).to(trainer.device)
 
 """
 先对比 self attn的形式
@@ -142,5 +143,4 @@ check_transformer_recurrent()
 
 
 print('OK!')
-
 

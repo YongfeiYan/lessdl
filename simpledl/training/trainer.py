@@ -56,9 +56,11 @@ class BasicTrainer:
         self.train_dataset = train_dataset
         self.valid_dataset = valid_dataset
         self._ready = False
-    
-    def _build_trainer(self):
+        self._build_trainer(from_init=True)
+
+    def _build_trainer(self, from_init=False):
         """Lazy building for distributed training
+        from_init: whether build at the end of self.__init__
         """
         if self._ready:
             return 
@@ -71,6 +73,7 @@ class BasicTrainer:
         os.makedirs(self.args.exp_dir, exist_ok=True)
         self._build_callbacks()
         self._ready = True
+        return self
 
     def _build_callbacks(self):
         args, callbacks, model = self.args, self._trainer_callbacks, self.model 
@@ -101,7 +104,7 @@ class BasicTrainer:
         if self.device:
             self.model.to(self.device)
 
-    def _build_sampler(self, dataset, shuffle, drop_last):
+    def _build_sampler(self, dataset, shuffle, drop_last, is_train=True):
         return None
 
     def _build_dataloader(self, dataset, is_train=True):
@@ -288,7 +291,7 @@ class BasicTrainer:
 
     @classmethod
     def add_dataloader_args(cls, parser, arglist=None):
-        parser.add_argument('--batch-size', type=int, metavar='N', required=True)
+        parser.add_argument('--batch-size', type=int, metavar='N', default=0)
         parser.add_argument('--max-batch-tokens', type=int, default=0, help='e.g. 4096')
         parser.add_argument('--shuffle', type=bool_flag, default=True, help='Shuffle training data')
         parser.add_argument('--num-workers', type=int, default=0)
@@ -450,6 +453,11 @@ class DDPTrainer(BasicTrainer):
             return sampler
         else:
             return None
+
+    def _build_trainer(self, from_init=False):
+        if from_init:
+            return self
+        return super()._build_trainer(from_init=False)
 
     def _train_worker(self, rank):
         self._rank = rank

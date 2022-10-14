@@ -17,4 +17,4 @@ cd fairseq
 pip install --editable ./
 
 # other pip libs 
-pip install fastBPE sacremoses subword_nmt tensorboardX overrides
+pip install fastBPE sacremoses subword_nmt tensorboardX overrides omegaconf

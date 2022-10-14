@@ -90,6 +90,9 @@ class DataLoader(torch.utils.data.DataLoader):
             sampler = torch.utils.data.RandomSampler(dataset, generator=generator)
             shuffle = False
         self.shuffle = shuffle
+        if not batch_size:
+            warnings.warn('No batch_size is specified, and set drop_last=False')
+            drop_last = False
         
         super().__init__(dataset, batch_size, shuffle=shuffle, sampler=sampler, batch_sampler=batch_sampler, num_workers=num_workers, 
             collate_fn=dataset.collate, 

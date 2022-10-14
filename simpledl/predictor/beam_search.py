@@ -289,6 +289,7 @@ class BeamSearchPredictor:
         self.end_index = end_index
         self.max_steps = max_steps
         self.beam_size = beam_size
+        self.device = next(model.parameters()).device
     
     def _search_step(self, last_predictions, state):
         src = state['src']
@@ -301,7 +302,7 @@ class BeamSearchPredictor:
 
     def predict(self, batch):
         self.model.eval()
-        src = batch['src']
+        src = batch['src'].to(self.device)
         max_steps = self.max_steps if self.max_steps > 10 else math.ceil(self.max_steps * src.size(1))
         beam_searcher = _BeamSearch(self.end_index, max_steps, self.beam_size)
         with torch.no_grad():
