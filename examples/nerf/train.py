@@ -7,13 +7,13 @@ import imageio
 import torch 
 import argparse
 
-from simdltk.data import get_dataset_cls
-from simdltk.model import get_model_cls, get_arch_arch
-from simdltk.training import get_trainer_cls
-from simdltk import logger, parse_args, set_random_state
-from simdltk.model.nerf import to8b
-from simdltk.training.callbacks import Callback, logger
-from simdltk.utils import bool_flag
+from simpledl.data import get_dataset_cls
+from simpledl.model import get_model_cls, get_arch_arch
+from simpledl.training import get_trainer_cls
+from simpledl import logger, parse_args, set_random_state
+from simpledl.model.nerf import to8b
+from simpledl.training.callbacks import Callback, logger
+from simpledl.utils import bool_flag
 
 
 def render_path(model, render_poses, gt_imgs=None, savedir=None, render_factor=0):

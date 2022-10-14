@@ -12,7 +12,7 @@ if __name__ == '__main__':
     files = glob.glob(args.in_path)
     begin_time = time.time()
 
-    from simdltk.data.tfrecord.reader import example_loader 
+    from simpledl.data.tfrecord.reader import example_loader 
     data_sample = None
     for file in files:
         loader = example_loader(file)
