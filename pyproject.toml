@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "simple-dl-toolkit"
 version = "0.0.2"
 authors = [
-  { name="YongfeiYan", email="yognfeiyan@pku.edu.cn" },
+  { name="YongfeiYan", email="yongfeiyan@pku.edu.cn" },
 ]
 description = "Simple deep learning toolkit"
 readme = "README.md"
