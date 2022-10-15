@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "simple-dl-toolkit"
+name = "lessdl"
 version = "0.0.2"
 authors = [
   { name="YongfeiYan", email="yongfeiyan@pku.edu.cn" },
@@ -18,8 +18,8 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/YongfeiYan/simpledl"
-"Bug Tracker" = "https://github.com/YongfeiYan/simpledl/issues"
+"Homepage" = "https://github.com/YongfeiYan/lessdl"
+"Bug Tracker" = "https://github.com/YongfeiYan/lessdl/issues"
 
 [tool.setuptools]
-packages = ["simpledl"]
+packages = ["lessdl"]

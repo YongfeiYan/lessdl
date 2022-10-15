@@ -2,7 +2,7 @@ import unittest
 import tempfile 
 
 from tests.utils import get_testdata_trainer
-from simpledl.predictor.beam_search import BeamSearchPredictor
+from lessdl.predictor.beam_search import BeamSearchPredictor
 
 
 class TestBeamSearch(unittest.TestCase):

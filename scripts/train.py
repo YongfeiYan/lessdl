@@ -1,9 +1,9 @@
 import argparse
 
-from simpledl.data import get_dataset_cls
-from simpledl.model import get_model_cls, get_arch_arch
-from simpledl.training import get_trainer_cls
-from simpledl import logger, parse_args, set_random_state
+from lessdl.data import get_dataset_cls
+from lessdl.model import get_model_cls, get_arch_arch
+from lessdl.training import get_trainer_cls
+from lessdl import logger, parse_args, set_random_state
 
 
 def main(args, evaluate_best_ckpt=True):

@@ -4,7 +4,7 @@
 from torch import nn
 from collections import namedtuple
 
-from simpledl.data.dataset import PairIterDataset
+from lessdl.data.dataset import PairIterDataset
 
 
 class BaseModel(nn.Module):

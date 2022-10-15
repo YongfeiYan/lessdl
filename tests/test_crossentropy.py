@@ -2,9 +2,9 @@ import torch
 from torch import nn
 import unittest 
 
-from simpledl.data import get_dataset_cls
-from simpledl.data.dataloader import DataLoader
-from simpledl.loss.cross_entropy import CrossEntropy, LabelSmoothedCrossEntropy
+from lessdl.data import get_dataset_cls
+from lessdl.data.dataloader import DataLoader
+from lessdl.loss.cross_entropy import CrossEntropy, LabelSmoothedCrossEntropy
 
 
 class T:

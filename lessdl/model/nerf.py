@@ -3,9 +3,9 @@ from torch.nn import functional as F
 from torch import nn
 import numpy as np 
 
-from simpledl.model.base import BaseModel
-from simpledl.model import register_model, register_model_architecture
-from simpledl.utils import bool_flag, acquire_attributes
+from lessdl.model.base import BaseModel
+from lessdl.model import register_model, register_model_architecture
+from lessdl.utils import bool_flag, acquire_attributes
 
 # Misc
 img2mse = lambda x, y : torch.mean((x - y) ** 2)

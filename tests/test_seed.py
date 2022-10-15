@@ -1,7 +1,7 @@
 import unittest
 import tempfile
 
-from simpledl import set_random_state
+from lessdl import set_random_state
 from tests.utils import build_trainer, get_testdata_trainer
 
 

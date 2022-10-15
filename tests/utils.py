@@ -5,11 +5,11 @@ import torch
 from itertools import chain
 import copy
 
-from simpledl.data.dataset import TranslationDataset
-from simpledl.training.trainer import BasicTrainer
-from simpledl.model import get_model_cls, get_arch_arch
-from simpledl.model.transformer import Transformer
-from simpledl import parse_args
+from lessdl.data.dataset import TranslationDataset
+from lessdl.training.trainer import BasicTrainer
+from lessdl.model import get_model_cls, get_arch_arch
+from lessdl.model.transformer import Transformer
+from lessdl import parse_args
 
 import torch
 from torch.nn import functional as F
