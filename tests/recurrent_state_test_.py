@@ -3,8 +3,8 @@ from tests.utils import get_testdata_trainer, replace_dropout, assert_tensor_eq
 replace_dropout(nodrop=False)
 import torch
 
-from simpledl.module.transformer import generate_square_subsequent_mask
-from simpledl.module.embedding import PositionalEmbedding
+from lessdl.module.transformer import generate_square_subsequent_mask
+from lessdl.module.embedding import PositionalEmbedding
 
 
 

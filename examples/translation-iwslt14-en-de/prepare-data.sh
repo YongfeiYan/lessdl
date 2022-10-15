@@ -42,7 +42,7 @@ for src_lang in en de; do
         convert_dir=data-converted-$src_lang-$tgt_lang-raw
         mkdir -p $convert_dir
         echo 'convert dataset to' $convert_dir
-        python -u $WORK_DIR/scripts/fairseq-raw-to-simpledl.py $prepro_dir $convert_dir
+        python -u $WORK_DIR/scripts/convert-fairseq-raw-data.py $prepro_dir $convert_dir
     fi 
 done
 ls -l . 

@@ -5,7 +5,7 @@ from torch.nn.init import xavier_uniform_
 from torch.nn import Dropout, Linear, LayerNorm, ModuleList, Module
 
 # from torch.nn.activation import MultiheadAttention
-from simpledl.module.activation import MultiheadAttention
+from lessdl.module.activation import MultiheadAttention
 from . import extract_sub_state, update_prev_state
 
 

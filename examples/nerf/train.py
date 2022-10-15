@@ -7,13 +7,13 @@ import imageio
 import torch 
 import argparse
 
-from simpledl.data import get_dataset_cls
-from simpledl.model import get_model_cls, get_arch_arch
-from simpledl.training import get_trainer_cls
-from simpledl import logger, parse_args, set_random_state
-from simpledl.model.nerf import to8b
-from simpledl.training.callbacks import Callback, logger
-from simpledl.utils import bool_flag
+from lessdl.data import get_dataset_cls
+from lessdl.model import get_model_cls, get_arch_arch
+from lessdl.training import get_trainer_cls
+from lessdl import logger, parse_args, set_random_state
+from lessdl.model.nerf import to8b
+from lessdl.training.callbacks import Callback, logger
+from lessdl.utils import bool_flag
 
 
 def render_path(model, render_poses, gt_imgs=None, savedir=None, render_factor=0):

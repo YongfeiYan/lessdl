@@ -2,12 +2,12 @@ import os
 import argparse
 import torch
 
-from simpledl import parse_args, logger, set_random_state
-from simpledl.predictor import get_predictor_cls
-from simpledl.training.utils import load_args, move_to_device
-from simpledl.data import get_dataset_cls
-from simpledl.data.dataloader import DataLoader
-from simpledl.model import get_model_cls, get_arch_arch
+from lessdl import parse_args, logger, set_random_state
+from lessdl.predictor import get_predictor_cls
+from lessdl.training.utils import load_args, move_to_device
+from lessdl.data import get_dataset_cls
+from lessdl.data.dataloader import DataLoader
+from lessdl.model import get_model_cls, get_arch_arch
 
 
 """

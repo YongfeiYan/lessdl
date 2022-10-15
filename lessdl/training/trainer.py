@@ -15,10 +15,10 @@ import torch.multiprocessing as mp
 import torch.distributed as dist 
 from torch.nn.parallel import DistributedDataParallel
 
-from simpledl.data.dataloader import DataLoader
-from simpledl.loss import get_loss_cls
+from lessdl.data.dataloader import DataLoader
+from lessdl.loss import get_loss_cls
 from .utils import get_optimizer, get_lr_scheduler, save_args, move_to_device
-from simpledl.utils import bool_flag
+from lessdl.utils import bool_flag
 from .callbacks import Checkpoint, CallbackList, LogCallback, LRStatCallback, Callback
 from . import register_trainer
 

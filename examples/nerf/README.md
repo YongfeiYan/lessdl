@@ -1,6 +1,6 @@
-# NeRF in simpledl
-This is a implementation of [NeRF](http://www.matthewtancik.com/nerf) (Neural Radiance Fields), which is under the framework of [simpledl](https://github.com/YongfeiYan/simpledl).
-It is based on the code of [NeRF-PyTorch](https://github.com/yenchenlin/nerf-pytorch), and with minor modifications of [NeRFDataset](https://github.com/YongfeiYan/simpledl/tree/master/simpledl/data/nerf_dataset.py#L110)/[NeRFModel](https://github.com/YongfeiYan/simpledl/tree/master/simpledl/model/nerf.py#L450), it can be trained easily by leveraging existing Trainer, e.g. multi-gpu Trainer.
+# NeRF in lessdl
+This is a implementation of [NeRF](http://www.matthewtancik.com/nerf) (Neural Radiance Fields), which is under the framework of [lessdl](https://github.com/YongfeiYan/lessdl).
+It is based on the code of [NeRF-PyTorch](https://github.com/yenchenlin/nerf-pytorch), and with minor modifications of [NeRFDataset](https://github.com/YongfeiYan/lessdl/tree/master/lessdl/data/nerf_dataset.py#L110)/[NeRFModel](https://github.com/YongfeiYan/lessdl/tree/master/lessdl/model/nerf.py#L450), it can be trained easily by leveraging existing Trainer, e.g. multi-gpu Trainer.
 
 ## Requirements 
 ```

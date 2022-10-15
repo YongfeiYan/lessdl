@@ -1,4 +1,4 @@
-from simpledl.data.vocab import Vocab
+from lessdl.data.vocab import Vocab
 from collections import Counter
 
 import unittest 

@@ -3,11 +3,11 @@
 
 # 介绍
 TODO: translate
-simpledl是Simple Deep Learning Toolkit的缩写，基于PyTorch，旨在用极简的接口构建神经网络和训练，能方便地复用模型，以及修改训练流程的各个环节，主要用于复现经典模型和进行一些实验。
+lessdl是基于PyTorch的Deep Learning Toolkit，旨在用极简的接口构建神经网络和训练，能方便地复用模型，以及修改训练流程的各个环节，主要用于复现经典模型和进行一些实验。
 
 # 关键接口
 ## Data
-不同任务的数据格式和处理方法都不相同，如果对数据进行抽象处理的话，会使整个代码变得极其复杂，simpledl没有针对数据抽象单独的类，而是复用PyTorch的Dataset，只要求返回的batch数据是dict格式，例如
+不同任务的数据格式和处理方法都不相同，如果对数据进行抽象处理的话，会使整个代码变得极其复杂，lessdl没有针对数据抽象单独的类，而是复用PyTorch的Dataset，只要求返回的batch数据是dict格式，例如
 ```python
 batch = {
     'src': src_seq,
@@ -15,7 +15,7 @@ batch = {
     'tgt': tgt_seq
 }
 ```
-在simpledl/data中提供了一些常用的数据处理类，可以方便地复用，比如TranslationDataset，根据两种语言的文本文件，构建一个Dataset。
+在lessdl/data中提供了一些常用的数据处理类，可以方便地复用，比如TranslationDataset，根据两种语言的文本文件，构建一个Dataset。
 
 ## Model
 Model的接口是forward函数，表示模型的前向计算，函数的参数可以是batch的key，或者是batch，输出也要求是一个dict，比如

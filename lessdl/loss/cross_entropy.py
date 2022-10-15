@@ -5,8 +5,8 @@ import torch
 import math
 from torch.nn import functional as F
 
-from simpledl.loss import register_loss, Loss
-from simpledl.utils import bool_flag
+from lessdl.loss import register_loss, Loss
+from lessdl.utils import bool_flag
 
 
 
