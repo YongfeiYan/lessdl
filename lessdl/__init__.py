@@ -6,18 +6,19 @@ import argparse
 import random
 import numpy as np
 import torch
+import json 
 
-from .data import get_dataset_cls
-from .model import get_model_cls
-from .training import get_trainer_cls
-from .predictor import get_predictor_cls
+from lessdl.utils import bool_flag
+from lessdl.data import get_dataset_cls
+from lessdl.model import get_model_cls, get_arch_arch
+from lessdl.training import get_trainer_cls, load_exp_args, load_args
+from lessdl.predictor import get_predictor_cls
 
 logger = logging.getLogger()
 
 
 class LogFormatter():
-    """
-    Using facebook codes.
+    """Using LogFormatter from fairseq
     """
     def __init__(self):
         self.start_time = time.time()
@@ -31,7 +32,7 @@ class LogFormatter():
             timedelta(seconds=elapsed_seconds)
         )
         message = record.getMessage()
-        # 注释下面, 让换行加上缩紧.
+        # Comment below to add index to each line
         # message = message.replace('\n', '\n' + ' ' * (len(prefix) + 3))
         return "%s - %s" % (prefix, message) if message else ''
 
@@ -44,12 +45,27 @@ if not _LOGGER_FORMAT:
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(LogFormatter())
     logger.addHandler(console_handler)
+    # logger.info('Setup logger')
     _LOGGER_FORMAT = True
 
 
+def set_random_state(seed):
+    if not seed:
+        logger.info('No seed is set.')
+        return 
+    assert isinstance(seed, int)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        logger.warning("Using seed will turn on the CUDNN deterministic setting, which can slow down your training considerably!")
+
+
 def parse_args(parser=None, arglist=None):
-    """
-    将dataset和model的args也加上去, 这样显示帮助的时候能够将对应的组显示出来.
+    """Add trainer/model/dataset... args if they are specified
     """
     assert arglist is None or isinstance(arglist, list), f'arglist should be a list like sys.argv[1:] or None.'
     assert parser is None or parser.add_help == False, f'在parser初始化的时候, 使用add_help=False, e.g. parser = argparse.ArgumentParser(add_help=False)'
@@ -61,6 +77,9 @@ def parse_args(parser=None, arglist=None):
     # TODO: 添加全部的dataset和models等等, 默认参数, choices等等
     # dataset
     parser.add_argument('--dataset', type=str, default='translation_dataset')
+    parser.add_argument('--train-split', type=str, default='train', )
+    parser.add_argument('--valid-split', type=str, default='valid', )
+    parser.add_argument('--test-split', type=str, default='test', help='use none to disable it.')
     args, _ = parser.parse_known_args(arglist)
     # 如果没有help, 必须要指定dataset
     if args.dataset or not args.help:
@@ -84,7 +103,7 @@ def parse_args(parser=None, arglist=None):
     if args.trainer:
         trainer_cls = get_trainer_cls(args.trainer)
         trainer_cls.add_args(parser, arglist)
-    
+
     # predictor
     parser.add_argument('--predictor', type=str)
     args, _ = parser.parse_known_args(arglist)
@@ -92,22 +111,84 @@ def parse_args(parser=None, arglist=None):
         predictor_cls = get_predictor_cls(args.predictor)
         predictor_cls.add_args(parser, arglist)
 
-    # help
+    # eval best checkpoint 
+    parser.add_argument('--evaluate-best-ckpt', type=bool_flag, default=True, help='Whether to evalute best checkpoit using test_data after training')
+    # restore from old exp_dir 
+    parser.add_argument('--restore-exp-dir', type=str, default=None, help='Restore args from old exp_dir.')
+    # parser.add_argument('--restore-mode', type=str, default='best', choices=['best', 'last'], help='Restore last or best ckpt')
+    # parser.add_argument('--restore-exp-ckpt', type=str, default=None, help='Restore ckpt from ')
+    parser.add_argument('--evaluate-only', type=bool_flag, default='False', help='Whether only evaluation and no training.')
+
+    # show help
     if args.help:
         print(parser.format_help())
         parser.exit()
+    
     return parser.parse_args(arglist)
 
 
-def set_random_state(seed):
-    if not seed:
-        return 
-    assert isinstance(seed, int)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        logger.warning("Using seed will turn on the CUDNN deterministic setting, which can slow down your training considerably!")
+def run_main(args, evaluate_best_ckpt=True, evaluate_only=False):
+    #
+    if args.restore_exp_dir:
+        logger.info('Load exp args from {}'.format(args.restore_exp_dir))
+        load_exp_args(args, args.restore_exp_dir, overwrite=True, argline=None)
+
+    set_random_state(args.seed)
+
+    # dataset
+    dataset_cls = get_dataset_cls(args.dataset)
+    train_data = dataset_cls.build(args, args.train_split)
+    valid_data = dataset_cls.build(args, args.valid_split)
+
+    # model
+    model_cls = get_model_cls(args.model, args.arch)
+    if args.arch:
+        arch = get_arch_arch(args.arch)
+        arch(args)
+    
+    # # TODO delete 
+    # print('set random state', '-' * 20)
+    # set_random_state(args.seed)
+
+    model = model_cls.build(args, train_data)
+    logger.info(f'Model:\n{model}')
+    # # TODO delete 
+    # print('save model', '-' * 20)
+    # torch.save(model.state_dict(), '/tmp/m1.pt')
+
+    # build training related objects(optimizer,lr_scheduler,callbacks) and train
+    trainer_cls = get_trainer_cls(args.trainer)
+    trainer = trainer_cls.build(args, model, train_data, valid_data)
+    logger.info(f'Args: {args}')
+    if args.restore_exp_dir:
+        # restore last ckpt 
+        # logger.info('Restore checkpoint from {}'.format(args.restore_exp_dir))
+        # Checkpoint(args.exp_dir).restore
+        logger.warn('Not implemented ----------------------------------')
+        # # TODO delete
+        # logger.info('load checkpoint')
+        # checkpoint = torch.load('local/image/torch_examples/model_best.pth.tar', map_location='cpu')
+        # pt = checkpoint['state_dict']
+        # for k in list(pt.keys()):
+        #     pt[k[len('module.'):]] = pt[k]
+        #     pt.pop(k)
+        # trainer.model.model.load_state_dict(pt)
+        # logger.info('finished loading')
+
+    if not evaluate_only:
+        trainer.train()
+
+    # evaluate
+    if args.test_split.lower() == 'none':
+        logger.warn('test_data is None and do not evaluate on best checkpoint')
+        return
+    test_data = dataset_cls.build(args, args.test_split)
+    if evaluate_best_ckpt:
+        logger.info('Reload best checkpoint and test on dataset ...')
+        trainer.ckpt.restore(best=True)
+    # # TODO delete
+    # logger.warn('TODO delete')
+    # from lessdl.data.dataset import ImageNetDataset
+    # test_data = ImageNetDataset(args.data_dir + '/val', is_train=True)
+    if evaluate_best_ckpt or evaluate_only:
+        trainer.evaluate(test_data)

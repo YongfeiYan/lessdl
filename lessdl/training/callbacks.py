@@ -7,13 +7,50 @@ import torch
 import json
 import torch.distributed as dist
 
-from .lr_scheduler import Scheduler
-from ..metrics.classification import binary_ctr_metrics, binary_auc
+from lessdl import bool_flag
+from lessdl.training.lr_scheduler import Scheduler
+from lessdl.metrics.classification import binary_ctr_metrics, binary_auc
+from lessdl.training import register_callback
+from lessdl.metrics.classification import accuracy
 
 logger = logging.getLogger()
 
 
+def toscalar(value):
+    """Convert a scalar to printable values.
+    if the value is int/float/torch.Tensor with dim 1, then convert it,
+    else return None.
+    """
+    if isinstance(value, (int, float)):
+        return value
+    if isinstance(value, torch.Tensor) and len(value.shape) == 0:
+        return value.item()
+    elif isinstance(value, torch.Tensor):
+        return None
+    return None
+
+
+def format_scalar(value, ndigits=6):
+    return f'{value:.{ndigits}f}'.rstrip('0').rstrip('.')
+
+
+def update_dict(res, dict_list, overwride=True):
+    assert isinstance(dict_list, list)
+    dup_keys = set()
+    for c in dict_list:
+        for k, v in c.items():
+            if k in res:
+                dup_keys.add(k)
+            if k not in res or overwride:
+                res[k] = v 
+    if dup_keys:
+        logger.info(f'dup_keys: {sorted(list(dup_keys))}')
+
+
 def default_format_status(status):
+    """Format scalars
+    status: dict
+    """
     items = sorted(list(status.items()))
     if not items:
         return ''
@@ -29,14 +66,43 @@ def default_format_status(status):
 # TODO: add a callback for calling functions every n epochs
 
 
+def get_batch_size(batch_dict):
+    """Get batch size following priority: 
+    - batch_size 
+    - the first value which has len
+    """
+    bs = None
+    if 'batch_size' in batch_dict:
+        bs = batch_dict['batch_size']
+        if isinstance(bs, torch.Tensor):
+            assert len(bs.shape) == 0, 'batch_size should be a scalar, but found shape {}'.format(bs.shape)
+            bs = bs.item()
+    else:
+        for v in batch_dict.values():
+            if hasattr(v, '__len__'):
+                bs = len(v)
+                break
+    assert bs is not None, 'No batch_size is parsed, assure batch_size in batch_dict or its values have __len__ defined. Keys of batch_dict {}'.format(list(batch_dict.keys()))
+    return bs 
+
+
+def merge_dict_keys(*args):
+    """Merge the keys in dict list"""
+    r = {}
+    for d in args:
+        if d is not None:
+            r.update(d)
+    return r
+
+
 class Callback(object):
     """
     Callback用于训练的过程进行回调, 用于测试模型的训练的情况, 比如保存断点等等.
     每个Callback可以抽象成一个状态, 如果模型从中断的训练中恢复的话, 可以根据这个状态进行恢复.
-    epoch/batch begin/end都是指的是training的时候.
+    epoch/batch begin/end都是指的是training的时候
     epoch|batch _ begin|end, 用于累积统计量
-    get/reset/formart status 用于获得, 重置, 格式化当前的统计量, 
-    打印一般只在LogCB中进行, Checkpoint中可以获取status, 用于比较最优的loss.
+    get/reset/formart status 用于获得, 重置, 格式化当前的统计量, 当get status的时候，应该满足调用多次返回相同的结果
+    打印一般只在LogCB中进行, Checkpoint中可以获取status, 用于比较最优的loss
     CallbackList只是用于调用一系列的Callback
     """
 
@@ -60,6 +126,7 @@ class Callback(object):
         if not self.use_counter:
             return {}
         return {
+            # 'callback_name': self.__class__.__name__,  # for debug 
             'epoch_counter': self.epoch_counter,
             'batch_counter': self.batch_counter
         }
@@ -76,7 +143,11 @@ class Callback(object):
         reset用于对多个batch累积训练信息的时候用.  
         随时获取训练过程的status. 
         """
-        return default_format_status(self.get_train_status())
+        status = self.get_train_status()
+        if self.__class__ != Callback:
+            status.pop('epoch_counter', None)
+            status.pop('batch_counter', None)
+        return default_format_status(status)
 
     def set_model(self, model):
         self.model = model
@@ -264,41 +335,132 @@ class CallbackList(object):
         return any(c.should_stop_training() for c in self.callbacks)
 
 
-def toscalar(value):
+class BaseCallback:
+    """准备重构callback，支持
+    - 从args进行build
+    - 存储状态和恢复状态
+    - rank
     """
-    将value转化成一个scalar, 包活 int float torch.Tensor
-    否则返回None
-    """
-    if isinstance(value, (int, float)):
-        return value
-    if isinstance(value, torch.Tensor) and len(value.shape) == 0:
-        return value.item()
-    elif isinstance(value, torch.Tensor):
-        return None
-    return None
-    # raise RuntimeError('Unknow type of value {}'.format(value))
+    def __init__(self, args=None, trainer=None, precursors=None, rank=None):
+        """
+        Require attributes model/optimizer/loss in trainer
+        args:
+        precursors: list of callbacks depencencies
+        rank: for distributed training
+        """
+        assert hasattr(trainer, 'model'), 'model is required in trainer'
+        assert hasattr(trainer, 'optimizer'), 'optimizer is required in trainer'
+        assert hasattr(trainer, 'lr_scheduler'), 'lr_scheduler is required in trainer'
+        self.args = args
+        self.trainer = trainer
+        self._model = None
+        self.optimizer = trainer.optimizer
+        self.lr_scheduler = trainer.lr_scheduler
+        self.rank = rank
+        self.precursors = precursors
+        # basic statistics
+        self.epoch_counter = 0
+        self.batch_counter = 0
+        self.train_status = None 
+        self.eval_status = None
 
+    @property
+    def model(self):
+        """
+        As trainer may change its model, set model to trainer.model
+        """
+        return self._model or self.trainer.model
 
-def format_scalar(value, ndigits=6):
-    return f'{value:.{ndigits}f}'.rstrip('0').rstrip('.')
+    @staticmethod
+    def add_args(parser, arglist=None):
+        pass
 
+    @classmethod
+    def build(cls, args, trainer, precursors: list = None, rank=None):
+        return cls(args, trainer, precursors, rank)
 
-def update_dict(res, dict_list, overwride=True):
-    assert isinstance(dict_list, list)
-    dup_keys = set()
-    for c in dict_list:
-        for k, v in c.items():
-            if k in res:
-                dup_keys.add(k)
-            if k not in res or overwride:
-                res[k] = v 
-    if dup_keys:
-        logger.info(f'dup_keys: {sorted(list(dup_keys))}')
+    def set_rank(self, rank):
+        self.rank = rank 
+
+    def reset_train_status(self):
+        pass
+
+    def get_train_status(self):
+        return {
+            'epoch_counter': self.epoch_counter,
+            'batch_counter': self.batch_counter,
+        }
+
+    def set_train_status(self, status):
+        self.epoch_counter = status.get('epoch_counter', 0)  # may be empty in descendants
+        self.batch_counter = status.get('batch_counter', 0)
+        return self
+
+    def format_train_status(self):
+        """
+        将status进行表示成str, 用于输出等等.
+        reset用于对多个batch累积训练信息的时候用.  
+        随时获取训练过程的status. 
+        """
+        status = self.get_train_status()
+        if self.__class__ != BaseCallback:
+            status.pop('epoch_counter', None)
+            status.pop('batch_counter', None)
+        return default_format_status(status)
+
+    def set_model(self, model):
+        self._model = model
+        return self
+
+    def on_train_epoch_begin(self, epoch, logs=None):
+        pass
+
+    def on_train_epoch_end(self, epoch, logs=None):
+        self.epoch_counter += 1
+
+    def on_train_batch_begin(self, batch, logs=None):
+        pass
+
+    def on_train_batch_end(self, batch, logs=None):
+        self.batch_counter += 1
+
+    def on_train_begin(self, logs=None):
+        pass
+
+    def on_train_end(self, logs=None):
+        pass
+    
+    def reset_evaluate_status(self):
+        pass
+
+    def get_evaluate_status(self):
+        return {}
+
+    def on_evaluate_begin(self):
+        """
+        开始前将状态初始化
+        """
+        self.reset_evaluate_status()
+
+    def on_evaluate_batch_begin(self, batch, logs=None):
+        pass
+
+    def on_evaluate_batch_end(self, batch, logs=None):
+        pass
+
+    def on_evaluate_end(self, eval_logs=None):
+        """
+        因为evaluate的结果可能会被后续用到, 因此end的时候, 添加返回值
+        """
+        return self.get_evaluate_status()
+
+    def should_stop_training(self):
+        """For earlystopping"""
+        return False
 
 
 class LogCallback(Callback):
-    """
-    将多个callback的信息和训练的信息打印出来. 也把batch信息和epoch信息打印出来.
+    """Logging info of training and other callbacks.
     """
     def __init__(self, callbacks, log_every_n_batches=500, log_every_n_epochs=1, rank=None):
         super().__init__(use_counter=True, rank=rank)
@@ -310,11 +472,10 @@ class LogCallback(Callback):
         self.eval_batch_counter = 0
 
     def _add_to_metrics(self, batch, logs, metrics):
-        """
-        用batch_size加权计算
+        """Get metrics and weighted by batch_size
         """
         assert isinstance(logs, dict)
-        batch_size = len(next(iter(batch.values())))
+        batch_size = get_batch_size(batch)
         for k, v in logs.items():
             v = toscalar(v)
             if v is not None:
@@ -323,11 +484,13 @@ class LogCallback(Callback):
                 else:
                     sb, sv = metrics[k]
                     metrics[k] = (sb + batch_size, sv + v * batch_size)
-    
+        # save sum_batch_size
+        metrics['sum_batch_size'] = (1, batch_size + metrics.get('sum_batch_size', [0, 0])[1])
+
     def _extract_metrics(self, metrics):
         res = {}
         for k, v in metrics.items():
-            res[k] = v[1] / v[0]
+            res[k] = v[1] / v[0] if k != 'sum_batch_size' else v[1]
         return res
 
     def on_train_batch_end(self, batch, logs=None):
@@ -355,8 +518,8 @@ class LogCallback(Callback):
             r = c.format_train_status()
             if not r:
                 continue
-            s = s + '\n' + r
-        return super().format_train_status() + ' - ' + s
+            s = s + ' - ' + r
+        return 'Epoch {}, batch {}'.format(self.epoch_counter, self.batch_counter) + ' - ' + s
 
     def on_evaluate_batch_end(self, batch, logs=None):
         self.eval_batch_counter = self.eval_batch_counter + 1
@@ -390,6 +553,8 @@ class LogCallback(Callback):
                 device = 'cuda' if torch.cuda.is_available() else 'cpu'
                 total = torch.tensor([1, v], dtype=torch.float32, device=device)
                 dist.all_reduce(total, dist.ReduceOp.SUM, async_op=False)
+                if k == 'sum_batch_size':
+                    total[0] = 1
                 v = (total[1] / total[0]).item()
                 logger.info('Rank {} finished reduce {}={}'.format(self.rank, k, v))
             r[k] = v
@@ -402,7 +567,7 @@ class LogCallback(Callback):
         status = self._may_reduce_status(self.get_evaluate_status())
         logs = logs or {}
         status.update(logs)
-        message = f'Evaluation: {default_format_status(status)}'
+        message = f'Evaluation - Epoch {self.epoch_counter} batch {self.batch_counter} - {default_format_status(status)}'
         dup_keys = set()
         for c in self.callbacks:
             s = self._may_reduce_status(c.get_evaluate_status())
@@ -412,7 +577,7 @@ class LogCallback(Callback):
                 if k in status:
                     dup_keys.add(k)
                 status[k] = v
-            message = message + '\n' + default_format_status(s)
+            message = message + ' - ' + default_format_status(s)
         if dup_keys:
             logger.warn('Rank {} - Duplicate keys of callback evaluation status: {}'.format(self.rank, list(dup_keys)))
         if self.rank is None or self.rank == 0:
@@ -543,7 +708,7 @@ class Checkpoint(Callback):
             prefix = os.path.join(self.base_dir, 'best')
             save_with_prefix(prefix)
 
-    def load_checkpoint(self, prefix):
+    def load_checkpoint(self, prefix, map_location=None):
         """TODO: load model on different devices
         """
         if self.rank is not None and self.rank > 0:
@@ -551,7 +716,7 @@ class Checkpoint(Callback):
         model_pt = prefix + '.pt'
         model_status = prefix + '.json'
         logger.info(f'Load checkpoint from {model_pt}')
-        state = torch.load(model_pt)
+        state = torch.load(model_pt, map_location=map_location)
         self.model.load_state_dict(state)
         del state
         with open(model_status) as f:
@@ -582,11 +747,10 @@ class Checkpoint(Callback):
                     last = os.path.join(save_dir, 'checkpoints/' + prefix)
         return last
 
-    def restore(self, best=False, last=False, save_dir=None):
+    def restore(self, best=False, last=False, save_dir=None, map_location=None):
         """
         TODO: 没有保存optimizer, lrscheduler等. 将status改成torch.save等形式, 而不是json等, 便于保存tensor.
         """
-        logger.warn('checkpoint只保存了模型参数, 没有保存optimizer,lr scheduler等, 恢复的训练状态不对!!!')
         assert best or last, f'best or last should be specified.'
         if best:
             if save_dir:
@@ -596,9 +760,11 @@ class Checkpoint(Callback):
         else:
             prefix = self.find_last_checkpoint_prefix(save_dir or self.base_dir)
         if not prefix or not os.path.exists(prefix + '.pt'):
+            logger.info('No checkpoint found')
             return None
+        logger.warn('checkpoint只保存了模型参数, 没有保存optimizer,lr scheduler等, 恢复的训练状态不对!!!')
         epoch = self.parse_prefix_epoch_num(prefix)
-        self.load_checkpoint(prefix)
+        self.load_checkpoint(prefix, map_location=map_location)
         return epoch
 
 
@@ -616,7 +782,12 @@ class LRStatCallback(Callback):
         if self.optimizer is not None:
             stat['optimizer'] = str(self.optimizer).replace('\n', '').replace('    ', ', ')
         if self.lr_scheduler is not None:
-            stat['lr_scheduler'] = f'{type(self.lr_scheduler).__name__} lr {format_scalar(self.lr_scheduler.lr, ndigits=10)}'
+            lr = self.lr_scheduler.lr  # may have different parameters groups
+            if not isinstance(lr, (list, tuple)):
+                lr = format_scalar(lr, ndigits=10)
+            else:
+                lr = ', '.join(format_scalar(lr, ndigits=10) for lr in lr)
+            stat['lr_scheduler'] = f'{type(self.lr_scheduler).__name__} lr {lr}'
         return stat
 
     def set_train_status(self, status=None):
@@ -735,16 +906,43 @@ class BinaryClassificationMetricsCallback(Callback):
         return self.evaluate_status
 
 
-class AccumulatorCallback(Callback):
+@register_callback('accumulator_cb')
+class AccumulatorCallback(BaseCallback):
+    """Accumulate outputs in each batch and save them to file.
     """
-    Accumulate outputs in each batch and save them to file.
-    """
-    def __init__(self, save_file_prefix=None, keys=''):
-        super().__init__(use_counter=True)
-        self.save_file_prefix = save_file_prefix
-        self.keys = [k for k in keys.split(',') if k]
+    def __init__(self, args, trainer, precursors=None, rank=None):
+        assert args.accumulator_cb_save_prefix and args.accumulator_cb_keys, 'accumulator_cb_save_prefix({}) or accumulator_cb_keys({}) is None'.format(args.accumulator_cb_save_prefix, args.accumulator_cb_keys)
+        super().__init__(args, trainer, precursors, rank)
+        self.save_file_prefix = args.accumulator_cb_save_prefix
+        self.keys = [k for k in args.accumulator_cb_keys.split(',') if k]
         logger.info('Keys to accumulate: {}'.format(self.keys))
         self.outputs = []
+        self.n_batches = args.accumulator_cb_n_batches or math.inf
+        # self.n_epochs = args.accumulator_cb_n_epochs or math.inf
+
+    @staticmethod
+    def add_args(parser, arglist=None):
+        parser.add_argument('--accumulator-cb-save-prefix', type=str, default=None)
+        parser.add_argument('--accumulator-cb-keys', type=str, default=None)
+        parser.add_argument('--accumulator-cb-n-batches', type=int, default=None, help='N batches to save')
+        # parser.add_argument('--accumulator-cb-n-epochs', type=int, default=None, help='N epochs to save')
+
+    def on_train_epoch_begin(self, epoch, logs=None):
+        self.outputs.clear()
+        self.outputs = [[] for _ in self.keys]
+        return super().on_train_epoch_begin(epoch, logs)
+
+    def on_train_batch_end(self, batch, logs=None):
+        super().on_train_batch_end(batch, logs)
+        if self.batch_counter <= self.n_batches:
+            self._add_batch_to_outputs(batch, logs)
+        if self.batch_counter == self.n_batches:
+            self._save_outputs(reset=True, mode='train')
+
+    def on_train_epoch_end(self, epoch, logs=None):
+        if self.batch_counter != self.n_batches:
+            self._save_outputs(reset=True, mode='train')
+        return super().on_train_epoch_end(epoch, logs)
 
     def on_evaluate_begin(self):
         self.outputs.clear()
@@ -752,6 +950,10 @@ class AccumulatorCallback(Callback):
         return super().on_evaluate_begin()
 
     def on_evaluate_batch_end(self, batch, logs=None):
+        self._add_batch_to_outputs(batch, logs)
+        return super().on_evaluate_batch_end(batch, logs)
+
+    def _add_batch_to_outputs(self, batch, logs):
         # save each batch outputs
         logs = logs or {}
         out = {}
@@ -765,29 +967,117 @@ class AccumulatorCallback(Callback):
                 self.outputs[i].append(v.detach().cpu())
             else:
                 raise NotImplementedError()
-        return super().on_evaluate_batch_end(batch, logs)
     
     def _accumulated_outputs(self, reset=True):
         res = []
-        for vs in self.outputs:
-            print('len vs', len(vs), vs[0].shape, vs[0].dtype, vs[0].device)
-            res.append(torch.cat(vs, dim=0))
+        for k, vs in zip(self.keys, self.outputs):
+            logger.info('len {} {}, shape {}, dtype {}, device {}'.format(k, len(vs), vs[0].shape, vs[0].dtype, vs[0].device))
+            if isinstance(vs[0], torch.Tensor) and len(vs[0].shape) > 0:
+                res.append(torch.cat(vs, dim=0))
+            elif isinstance(vs[0], torch.Tensor) and len(vs[0].shape) == 0:
+                res.append(torch.Tensor(vs).to(vs[0].device))
+            else:
+                res.append(vs)
         if reset:
             self.outputs.clear()
         return res
 
+    def _save_outputs(self, reset, mode='eval'):
+        assert reset == True , 'Only reset=True is considered'
+        outputs = self._accumulated_outputs(reset=reset)
+        self.outputs.extend(outputs)  # keep accumulated outputs, so that it can be accessed latter
+        file = '{}_{}_epoch_{}_batch_{}'.format(self.save_file_prefix, mode, self.epoch_counter, self.batch_counter)
+        if self.rank is not None:
+            file = file + '_rank_{}'.format(self.rank)
+        file = file + '.pt'
+        logger.info('Saving outputs to {}'.format(file))
+        torch.save({
+            'keys': self.keys,
+            'outputs': outputs
+        }, file)
+        logger.info('Finished saving')
+
     def on_evaluate_end(self, eval_logs=None):
         super().on_evaluate_end(eval_logs)
+        self._save_outputs(reset=True, mode='train')
         # accumulate and delete old list
-        outputs = self._accumulated_outputs(reset=True)
-        self.outputs.extend(outputs)
-        # save to file
-        if self.save_file_prefix:
-            file = '{}_epoch_{}.pt'.format(self.save_file_prefix, self.epoch_counter)
-            # os.makedirs(dir_of_file, exist_ok=True)
-            logger.info('Saving outputs to {}'.format(file))
-            torch.save({
-                'keys': self.keys,
-                'outputs': self.outputs,  # list of tensors
-            }, file)
-            logger.info('Saving finished')
+        # outputs = self._accumulated_outputs(reset=True)
+        # self.outputs.extend(outputs)
+        # # save to file
+        # if self.rank is not None:
+        #     save_file_prefix = self.save_file_prefix + '_{}'.format(self.rank)
+        # else:
+        #     save_file_prefix = self.save_file_prefix
+        # if save_file_prefix:
+        #     file = '{}_epoch_{}.pt'.format(save_file_prefix, self.epoch_counter)
+        #     # os.makedirs(dir_of_file, exist_ok=True)
+        #     logger.info('Saving outputs to {}'.format(file))
+        #     torch.save({
+        #         'keys': self.keys,
+        #         'outputs': self.outputs,  # list of tensors
+        #     }, file)
+        #     logger.info('Saving finished')
+
+
+@register_callback('acc_cb')
+class AccuracyMetricCallback(BaseCallback):
+    """Accuracy of classification, topk=1,5 etc.
+    output key in acc1, acc5 etc.
+    """
+    def __init__(self, args=None, trainer=None, precursors=None, rank=None):
+        super().__init__(args, trainer, precursors, rank)
+        self.topk = tuple([int(n) for n in args.acc_cb_topk.split(',') if n])
+    
+    def reset_evaluate_status(self):
+        super().reset_evaluate_status()
+        self.eval_status = {}
+
+    def on_evaluate_begin(self):
+        super().on_evaluate_begin()
+        self.eval_status = {}
+    
+    def acc_key(self, k):
+        return 'acc{}'.format(k)
+
+    def on_evaluate_batch_end(self, batch, logs=None):
+        super().on_evaluate_batch_end(batch, logs)
+        out = merge_dict_keys(batch, logs)
+        output = out.get('logits', None)
+        if output is None:
+            output = out.get('log_probs', None)
+        assert output is not None, 'logits or log_probs is not found, all keys are {}'.format(list(out.keys()))
+        target = out.get('target', None)
+        assert target is not None, 'target is not found, all keys are {}'.format(list(out.keys()))
+        acc = accuracy(output, target, topk=self.topk)
+        batch_size = target.size(0)
+        for k, a in zip(self.topk, acc):
+            acc_key = self.acc_key(k)
+            if acc_key in self.eval_status:
+                acc_a, acc_bs = self.eval_status[acc_key]
+            else:
+                acc_a, acc_bs = 0, 0 
+            self.eval_status[acc_key] = torch.Tensor([a * batch_size + acc_a, batch_size + acc_bs])
+    
+    @property
+    def msg_prefix(self):
+        if self.rank is not None:
+            return 'Rank {} - '.format(self.rank)
+        return ''
+    
+    def get_evaluate_status(self):
+        r = {}
+        for k, v in self.eval_status.items():
+            if self.rank is not None:
+                logger.info(self.msg_prefix + '({}, batch_size) = {}'.format(k, v))
+            #     device = 'cuda' if torch.cuda.is_available() else 'cpu'  # tested only when device='cuda'
+            #     v = v.clone().to(device)
+            #     dist.all_reduce(v, dist.ReduceOp.SUM, async_op=False)
+            # if self.rank is not None and self.rank == 0:
+            #     logger.info(self.msg_prefix + 'After reduce ({}, batch_size) = {}'.format(k, v))
+            v = (v[0] / v[1]).item()
+            r[k] = v
+        return r
+
+    @staticmethod
+    def add_args(parser, arglist=None):
+        parser.add_argument('--acc-cb-topk', type=str, default='1', help='e.g. 1,5 or 1')

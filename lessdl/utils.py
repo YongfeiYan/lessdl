@@ -33,13 +33,6 @@ def assert_no_nan(tensor):
         print('skip assert_no_nan with type', type(tensor))
 
 
-def get_required_keys(d, keys, msg):
-    """
-    TODO: for implicit dict interface with keys required
-    """
-    pass
-
-
 def glob_with_comma(pattern):
     pattern = pattern.split(',')
     files = []
@@ -65,8 +58,7 @@ def acquire_attributes(obj, attrs, msg):
 
 
 def acquire_keys(d, keys, msg):
-    """
-    Check required keys
+    """Check and get required keys
     """
     single = False
     if isinstance(keys, str):
@@ -78,4 +70,3 @@ def acquire_keys(d, keys, msg):
             raise RuntimeError('Key {} is not found, with message {}'.format(k, msg))
         r.append(d[k])
     return r[0] if single else r
-

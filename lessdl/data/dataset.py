@@ -1,6 +1,8 @@
 import os
 import torch
 import glob
+import logging
+
 from torch.utils.data import Dataset, IterableDataset, get_worker_info
 from torch.utils.data.dataloader import default_collate
 from functools import partial, update_wrapper
@@ -9,6 +11,8 @@ from torchvision import datasets, transforms
 
 from lessdl.data.vocab import Vocab
 from lessdl.data import register_dataset
+
+logger = logging.getLogger()
 
 
 def collate_tokens(
@@ -348,19 +352,35 @@ class FilesDataset(IterableDataset):
 
 @register_dataset('imagenet_dataset')
 class ImageNetDataset(datasets.ImageFolder):
-    def __init__(self, dir, img_resize=256, img_crop=224) -> None:
-        super().__init__()
+    def __init__(self, dir, img_resize=256, img_crop=224, is_train=False) -> None:
+        super().__init__(dir)
         self.dir = dir
         self.img_resize = img_resize
         self.img_crop = img_crop
-        super().__init__(dir,
-            transforms.Compose([
+        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+        train_transform = transforms.Compose([
+                transforms.RandomResizedCrop(img_crop),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                normalize,
+        ])
+        val_transform = transforms.Compose([
                 transforms.Resize(img_resize),
                 transforms.CenterCrop(img_crop),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ])
-        )
+                normalize,
+        ])
+        logger.info(f"ImageNetDataset dir={dir}, is_train={is_train}")
+        super().__init__(dir, train_transform if is_train else val_transform)
+    
+    def __getitem__(self, index):
+        sample, target = super().__getitem__(index)
+        return {
+            'x': sample,
+            'target': target,
+            'index': index,
+        }
     
     @staticmethod
     def add_args(parser, arglist=None):
@@ -370,6 +390,10 @@ class ImageNetDataset(datasets.ImageFolder):
 
     @staticmethod
     def build(args, split=None):
+        if split == 'valid':
+            split = 'val'
         data_dir = os.path.join(args.data_dir, split)
-        return ImageNetDataset(data_dir, args.img_resize, args.img_crop)
+        if split == 'test' and not os.path.exists(data_dir):
+            return None
 
+        return ImageNetDataset(data_dir, args.img_resize, args.img_crop, is_train=(split == 'train'))

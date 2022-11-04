@@ -64,8 +64,9 @@ def train(...):
 通过修改trainer，可以方便地修改数据、模型、以及训练的每个环节
 
 
-# 示例
-## [Machine Translation: Transformer, IWSLT2014](examples/translation-iwslt14-en-de/README.md)
+# Examples
+## Machine Translation 
+[Machine Translation: Transformer, IWSLT2014](examples/translation-iwslt14-en-de/README.md)
 BLEU结果: 
 | Model | de -> en | en -> de |
 | :--:  |  :--:    |   :--:   |

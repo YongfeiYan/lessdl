@@ -4,10 +4,12 @@
 import torch
 import math
 from torch.nn import functional as F
+import logging
 
 from lessdl.loss import register_loss, Loss
-from lessdl.utils import bool_flag
+from lessdl.utils import bool_flag, acquire_keys
 
+logger = logging.getLogger()
 
 
 def get_log_prob_target(batch, out):
@@ -58,7 +60,9 @@ class CrossEntropy(Loss):
     @classmethod
     def build(cls, args, model, dataset):
         if args.cross_entropy_padding_idx is None:
-            padding_idx = dataset.padding_idx
+            padding_idx = getattr(dataset, 'padding_idx', None)
+            if padding_idx is None:
+                logger.info('padding_idx is not set in cross_entropy')
         else:
             padding_idx = args.cross_entropy_padding_idx
         sentence_avg = args.sentence_avg
@@ -74,26 +78,37 @@ class CrossEntropy(Loss):
         batch 和 model output
         TODO: 将ppl加进去.
         """
-        log_probs, target = get_log_prob_target(batch, out)
-        loss = F.nll_loss(
-            log_probs.view(-1, log_probs.size(-1)), 
-            target.view(-1), 
-            ignore_index=self.padding_idx,
-            reduction='sum', 
-        )
-        ntokens = target.ne(self.padding_idx).long().sum().item()
-        sample_size = target.size(0) if self.sentence_avg else ntokens
-        return {
+        if self.padding_idx is not None:
+            log_probs, target = get_log_prob_target(batch, out)
+            loss = F.nll_loss(
+                log_probs.view(-1, log_probs.size(-1)), 
+                target.view(-1), 
+                ignore_index=self.padding_idx,
+                reduction='sum', 
+            )
+            ntokens = target.ne(self.padding_idx).long().sum().item()
+        else:
+            log_probs, target = get_log_prob_target(batch, out)
+            loss = F.nll_loss(
+                log_probs.view(-1, log_probs.size(-1)), 
+                target.view(-1),
+                reduction='sum', 
+            )
+            ntokens = None 
+        sample_size = target.size(0) if self.sentence_avg or ntokens is None else ntokens
+        res = {
             'loss': loss / sample_size,
             'sample_loss': loss,
             'sample_size': sample_size,
-            'ntokens': ntokens
         }
+        if ntokens is not None:
+            res['ntokens'] = ntokens
+        return res
 
     def reduce(self, losses):
         sample_loss = torch.sum([a['sample_loss'] for a in losses])
         sample_size = torch.sum([a['sample_size'] for a in losses])
-        ntokens = torch.sum([a['ntokens'] for a in losses])
+        ntokens = torch.sum([a['ntokens'] for a in losses])  # TODO may not exist
         return {
             'loss': sample_loss / sample_size,
             'sample_loss': sample_loss,
@@ -219,3 +234,17 @@ class LabelSmoothedCrossEntropy(Loss):
             'sample_nll_loss': sample_nll_loss,
             'nll_loss': sample_nll_loss / sample_size,
         }
+
+
+@register_loss('multiclass_cross_entropy')
+class MulticlassCrossEntropy(Loss):
+    # def __init__(self):
+    #     super().__init__()
+    
+    # @classmethod
+    # def build(cls, args, model, dataset):
+    #     return cls()
+    
+    def forward(self, batch, out):
+        pass
+

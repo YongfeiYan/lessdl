@@ -2,6 +2,8 @@ import numpy as np
 import torch
 from torch import optim
 import json
+import os
+import sys
 
 ###################################################
 # checkpoints
@@ -43,33 +45,6 @@ import json
 #         arg_max = torch.argmax(pred, dim=-1, keepdim=False)
 #         return (arg_max == gold_true).float().mean().item()
 #     return (np.argmax(pred, axis=-1) == gold_true).mean()
-
-
-# import copy
-# import inspect
-# import logging
-# import sys
-# import warnings
-# from contextlib import contextmanager
-# from importlib import import_module
-# from traceback import print_tb
-# from typing import Any, Dict, List
-# from collections import MutableMapping, OrderedDict
-# import copy
-# import json
-# import logging
-# import collections
-# import os
-# import warnings
-# import argparse
-# import time
-
-# import numpy as np
-# import yaml
-# import six
-
-
-# _LOGGER = None
 
 
 # def get_logger(log_file, use_global=True):
@@ -314,18 +289,26 @@ def save_args(args, file):
         json.dump(kwargs, wt)
 
 
-def load_args(args, file, overwrite=False):
+def load_args(args, file, overwrite=False, argline=None):
+    if argline is None:
+        argline = sys.argv[1:]
     with open(file) as f:
         kwargs = json.load(f)
     for k, v in kwargs:
+        if '--{}'.format(k.replace('_', '-')) in argline:  # specified in command line
+            continue
         if overwrite or getattr(args, k, None) is None:
             setattr(args, k, v)
     return kwargs
 
 
+def load_exp_args(args, exp_dir, overwrite=False, argline=None):
+    file = os.path.join(exp_dir, 'kwargs.json')
+    return load_args(args, file, overwrite, argline=argline)
+
+
 def move_to_device(batch, device, non_blocking=False):
-    """
-    将batch中非_开头key对应的value的Tensor都移动到device上
+    """Move tensors in batch to device, skip keys starting with _
     """
     res = {}
     for k, v in batch.items():
@@ -445,10 +428,12 @@ def get_lr_scheduler(optimizer, s):
     if s == 'none' or not s:
         return None
     method, kwargs = split_method_kwargs(s)
-    from .lr_scheduler import InverseSquareRootSchedule, ExponentialDecayLR
+    from .lr_scheduler import InverseSquareRootSchedule, ExponentialDecayLR, StepLR
     if method == 'inverse_sqrt':
         return InverseSquareRootSchedule(optimizer, **kwargs)
     elif method == 'exponential_decay_lr':
         return ExponentialDecayLR(optimizer, **kwargs)
+    elif method == 'steplr':
+        return StepLR(optimizer, **kwargs)
     else:
         raise RuntimeError(f'{s} {kwargs}')

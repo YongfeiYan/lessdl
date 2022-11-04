@@ -2,6 +2,7 @@ import os
 import importlib
 import functools
 
+from lessdl.training.utils import load_exp_args, move_to_device, load_args
 
 TRAINERS = {}
 CALLBACKS = {}
@@ -21,7 +22,7 @@ def register_trainer(name):
 
 
 def get_trainer_cls(name):
-    assert name in TRAINERS, f'Trainer {name} is not registered in models ({list(TRAINERS.keys())})'
+    assert name in TRAINERS, f'Trainer {name} is not registered, availables are ({list(TRAINERS.keys())})'
     return TRAINERS[name]
 
 
@@ -38,8 +39,7 @@ def register_callback(name):
 
 
 def get_callback_cls(name):
-    # TODO not used
-    assert name in CALLBACKS, 'Callback {} is not found in {}'.format(name, list(CALLBACKS.keys()))
+    assert name in CALLBACKS, 'Callback {} is not found, availables are {}'.format(name, list(CALLBACKS.keys()))
     return CALLBACKS[name]
 
 

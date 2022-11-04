@@ -6,7 +6,10 @@ from itertools import chain
 import copy
 
 from lessdl.data.dataset import TranslationDataset
+from lessdl import set_random_state
 
+
+set_random_state(13)  # may fail to test if using another seed, such as 3
 
 parser = argparse.ArgumentParser()
 TranslationDataset.add_args(parser)
@@ -34,7 +37,7 @@ Transformer.add_args(parser)
 args, _ = parser.parse_known_args(arg_line)
 arch = get_arch_arch(args.arch)
 arch(args)
-print(args)
+print('args:\n', args)
 model = Transformer.build(args, train_data)
 
 
@@ -118,9 +121,9 @@ def log_on_train_epoch_end(epoch, logs=None):
     train_metrics.append(copy.deepcopy(back_log._extract_metrics(back_log.train_metrics)))
     back_fn(epoch, logs)
 
-
-BasicTrainer.add_args(parser)
-args = parser.parse_args(arg_line)
+print('parse argline:\n', arg_line)
+BasicTrainer.add_args(parser, arg_line)
+args, _ = parser.parse_known_args(arg_line)
 print('trainer args:\n', args)
 if os.path.exists(exp_dir):
     shutil.rmtree(exp_dir)

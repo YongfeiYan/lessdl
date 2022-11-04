@@ -1,10 +1,34 @@
 """
-来自allennlp, 增加了step_batch的部分.
+Refer allennlp, add step_batch for lr_scheduler.
 https://github.com/allenai/allennlp/blob/main/allennlp/training/learning_rate_schedulers/learning_rate_scheduler.py
 """
-from typing import Dict, Any
 import torch
+from torch.optim import lr_scheduler
+from typing import Dict, Any
 from overrides import overrides
+
+
+def scheduler_wrapper(cls):
+    """Add step_batch get_lr function to torch.optim.lr_scheduler.CLS
+    """
+    
+    class LRWrapper(cls):
+        
+        @property
+        def lr(self):
+            return self.get_last_lr()
+
+        def step_batch(*args, **kargs):
+            """Do nothing
+            """
+            pass
+    
+    LRWrapper.__name__ = 'LRWrapper_{}'.format(cls.__name__)
+
+    return LRWrapper
+
+
+StepLR = scheduler_wrapper(lr_scheduler.StepLR)
 
 
 class Scheduler:
@@ -67,8 +91,12 @@ class Scheduler:
         raise NotImplementedError
 
     def step(self, metric: float = None) -> None:
+        """
+        TODO: be compatible with torch.optim.lr_scheduler
+        """
         self.last_epoch += 1
         self.metric = metric
+        assert metric is None, 'To compatible, define step like: def step(epoch)'
         for param_group, value in zip(self.optimizer.param_groups, self.get_values()):
             param_group[self.param_group_field] = value
 
