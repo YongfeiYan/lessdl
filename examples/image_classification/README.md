@@ -1,13 +1,7 @@
 # Image Classification
 
-先检查训练过程各个指标是否对齐了，比如数据量/loss等指标大小/lr变化/训练速度等等
-如何快速debug：数据 / 模型 / 优化 / metrics
-数据 + 模型 + metrics ：用参考模型和数据进行计算
-优化 ：固定seed比对输出
-快速：减少数据量，避免全量训练
-
 TODO 整理模型比对和grad比对的函数, 便于以后使用; 测试单卡的运行
-
+TODO En README / pip / readthedocs / add import-lib
 
 ## Data
 ### ImageNet
@@ -47,23 +41,23 @@ PYTHONPATH=. python -u main.py local/data/imagenet -a resnet50 --lr 0.01
 
 ## Results
 
-alexnet        x
-densenet161  acc1:78.549995, acc5:94.229996 30min  32x8
-vgg19          x
+alexnet       run
+densenet161  acc1:78.020004, acc5:94.042007 90  0.1
+vgg19         run
 vgg19_bn      run
 renset18      run
-resnet34     run 
-resnet50     acc1:76.466003, acc5:93.173996  22min-25min/epoch  32x8 
-resnet101    run 
-resnet152    acc1:78.447998, acc5:94.088013  27min  32x8
+resnet34     acc1:73.148003, acc5:91.350006  90 0.1 
+resnet50     acc1:75.802002, acc5:92.82  90  0.1 
+resnet101    acc1:77.386002, acc5:93.663994  90   0.1 
+resnet152    acc1:77.989998, acc5:93.877998  90  0.1 
 
+densenet161  acc1:78.549995, acc5:94.229996 120  0.1
+resnet34     acc1:73.903999, acc5:91.669998  120 0.1
+resnet50     acc1:76.466003, acc5:93.173996  120  0.1 
+resnet152    acc1:78.447998, acc5:94.088013  120  0.1 
 
 ## Reference 
 - [PyTorch ImageNet Example](https://github.com/pytorch/examples/tree/main/imagenet)
 - [ImageNet related models](https://github.com/jiweibo/ImageNet)
 - [Paperwithcode ImageNet](https://paperswithcode.com/dataset/imagenet)
 - [HuggingFace ImageNet 1k](https://huggingface.co/datasets/imagenet-1k)
-
-
-
-

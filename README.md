@@ -66,8 +66,12 @@ def train(...):
 
 # Examples
 ## Machine Translation 
-[Machine Translation: Transformer, IWSLT2014](examples/translation-iwslt14-en-de/README.md)
-BLEU结果: 
+### Models
+- Transformer </br>
+    [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
+
+### Results 
+[BLEU scores of different models on IWSLT2014](examples/translation-iwslt14-en-de/README.md)
 | Model | de -> en | en -> de |
 | :--:  |  :--:    |   :--:   |
 | Transformer | 33.27 | 27.72 | 
