@@ -7,6 +7,7 @@ from lessdl import logger, parse_args, set_random_state
 
 
 def main(args, evaluate_best_ckpt=True):
+    logger.warn('Deprecated: "use python -m lessdl" instead')
     set_random_state(args.seed)
     # dataset
     dataset_cls = get_dataset_cls(args.dataset)
