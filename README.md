@@ -78,6 +78,7 @@ BLEU scores on IWSLT2014:
 | Tied Transformers | 35.10 | 29.07 | 
 | fairseq | 34.54 | 28.61 | 
 | Ours | 34.36 | 28.33 | 
+
 [Here for details](examples/translation-iwslt14-en-de/README.md)
 
 
@@ -105,6 +106,7 @@ Top 1 and top 5 accuracy of validation on ImageNet ILSVRC2012:
 | ResNet50    | 75.802002 | 92.82     |   90     |  0.1          | 
 | ResNet101   | 77.386002 | 93.663994 |   90     |  0.1          |
 | ResNet152   | 77.989998 | 93.877998 |   90     |  0.1          | 
+
 [Here for details](examples/image_classification/README.md)
 
 
