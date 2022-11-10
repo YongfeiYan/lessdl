@@ -66,21 +66,49 @@ def train(...):
 
 # Examples
 ## Machine Translation 
-### Models
+__Models__
 - Transformer </br>
     [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
 
-### Results 
-[BLEU scores of different models on IWSLT2014](examples/translation-iwslt14-en-de/README.md)
+__Results__
+BLEU scores on IWSLT2014: 
 | Model | de -> en | en -> de |
 | :--:  |  :--:    |   :--:   |
 | Transformer | 33.27 | 27.72 | 
 | Tied Transformers | 35.10 | 29.07 | 
 | fairseq | 34.54 | 28.61 | 
 | Ours | 34.36 | 28.33 | 
+[Here for details](examples/translation-iwslt14-en-de/README.md)
+
+
+## Image Classification 
+__Models__
+- AlexNet </br>
+    [ImageNet Classification with Deep Convolutional Neural Networks](https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf)
+- DenseNet </br>
+    [Densely Connected Convolutional Networks](https://arxiv.org/pdf/1608.06993.pdf)
+- VGG </br>
+    [Very Deep Convolutional Networks for Large-Scale Image Recognition](https://arxiv.org/abs/1409.1556)
+- ResNet </br>
+    [Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385)
+
+__Results__
+Top 1 and top 5 accuracy of validation on ImageNet ILSVRC2012:
+|   Model     | Acc@1     | Acc@5     | Epochs   | Learning Rate |
+|   :--:      | :--:      |   :--:    |   :--:   |   :--:        |
+| AlexNet     | 56.271999 | 78.982002 |   90     |  0.01         |
+| DenseNet161 | 78.020004 | 94.042007 |   90     |  0.1          |
+| VGG19       | 72.269997 | 90.940002 |   90     |  0.01         | 
+| VGG19_bn    | 74.251999 | 92.159996 |   90     |  0.1          |
+| ResNet18    | 69.753998 | 89.138    |   90     |  0.1          |
+| ResNet34    | 73.148003 | 91.350006 |   90     |  0.1          |
+| ResNet50    | 75.802002 | 92.82     |   90     |  0.1          | 
+| ResNet101   | 77.386002 | 93.663994 |   90     |  0.1          |
+| ResNet152   | 77.989998 | 93.877998 |   90     |  0.1          | 
+[Here for details](examples/image_classification/README.md)
 
 
 # Reference
-fairseq </br>
-AllenNLP </br>
-[Read TFRecord](https://github.com/vahidk/tfrecord/blob/master/tfrecord/reader.py)</br>
+- [fairseq](https://github.com/facebookresearch/fairseq)
+- [AllenNLP](https://allenai.org/allennlp)
+- [Keras](https://keras.io/)

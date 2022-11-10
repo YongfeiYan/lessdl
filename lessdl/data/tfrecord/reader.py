@@ -1,4 +1,6 @@
-"""Reader utils."""
+"""Reader utils.
+[Read TFRecord](https://github.com/vahidk/tfrecord/blob/master/tfrecord/reader.py)
+"""
 
 import functools
 import gzip

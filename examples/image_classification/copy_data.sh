@@ -1,5 +1,5 @@
-
-# chose one image each class to form debugging dataset
+# Copy some images to debug into dir: local/data/imagenet-test 
+# choose one image each class to form debugging dataset
 src_dir=local/data/imagenet 
 dst_dir=local/data/imagenet-test
 mkdir -p $dst_dir 
