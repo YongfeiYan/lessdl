@@ -146,15 +146,8 @@ def run_main(args, evaluate_best_ckpt=True, evaluate_only=False):
         arch = get_arch_arch(args.arch)
         arch(args)
     
-    # # TODO delete 
-    # print('set random state', '-' * 20)
-    # set_random_state(args.seed)
-
     model = model_cls.build(args, train_data)
     logger.info(f'Model:\n{model}')
-    # # TODO delete 
-    # print('save model', '-' * 20)
-    # torch.save(model.state_dict(), '/tmp/m1.pt')
 
     # build training related objects(optimizer,lr_scheduler,callbacks) and train
     trainer_cls = get_trainer_cls(args.trainer)
@@ -165,15 +158,6 @@ def run_main(args, evaluate_best_ckpt=True, evaluate_only=False):
         # logger.info('Restore checkpoint from {}'.format(args.restore_exp_dir))
         # Checkpoint(args.exp_dir).restore
         logger.warn('Not implemented ----------------------------------')
-        # # TODO delete
-        # logger.info('load checkpoint')
-        # checkpoint = torch.load('local/image/torch_examples/model_best.pth.tar', map_location='cpu')
-        # pt = checkpoint['state_dict']
-        # for k in list(pt.keys()):
-        #     pt[k[len('module.'):]] = pt[k]
-        #     pt.pop(k)
-        # trainer.model.model.load_state_dict(pt)
-        # logger.info('finished loading')
 
     if not evaluate_only:
         trainer.train()
@@ -186,9 +170,5 @@ def run_main(args, evaluate_best_ckpt=True, evaluate_only=False):
     if evaluate_best_ckpt:
         logger.info('Reload best checkpoint and test on dataset ...')
         trainer.ckpt.restore(best=True)
-    # # TODO delete
-    # logger.warn('TODO delete')
-    # from lessdl.data.dataset import ImageNetDataset
-    # test_data = ImageNetDataset(args.data_dir + '/val', is_train=True)
     if evaluate_best_ckpt or evaluate_only:
         trainer.evaluate(test_data)

@@ -691,7 +691,6 @@ class Checkpoint(Callback):
             model_pt = prefix + '.pt'
             model_status = prefix + '.json'
             logger.info(f'saving checkpoints to {model_pt} and {model_status}')
-            # print('TODO DELETE del state')
             state = self.model.state_dict()
             torch.save(state, model_pt)
             del state

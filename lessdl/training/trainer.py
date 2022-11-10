@@ -186,10 +186,6 @@ class BasicTrainer:
                 break
             cb_list.on_train_epoch_begin(e)
             self.model.train()
-            # # TODO delete 
-            # print('set random state rank', self._rank)
-            # from lessdl import set_random_state
-            # set_random_state(self.args.seed)
 
             for batch in self.train_loader:            
                 if cb_list.should_stop_training():
@@ -236,25 +232,6 @@ class BasicTrainer:
             return out
         out['loss'].backward()
 
-        # # TODO delete 
-        # from tests.utils.tensor_op import save_parameters
-        # print('save optimizer')
-        # grad_file = self.args.exp_dir + '/opt_rank{}.pt'.format(self._rank)
-        # if not os.path.exists(grad_file):
-        #     torch.save(self.optimizer.state_dict(), grad_file)
-        #     logger.info('Optimizer rank {} {}'.format(self._rank, self.optimizer))
-
-        # print('save grad')
-        # grad_file = self.args.exp_dir + '/grad_rank{}.pt'.format(self._rank)
-        # save_parameters(self.model, grad_file, with_grad=True, overwrite=False)
-        # if not os.path.exists(grad_file):
-        #     print('save grad', '-' * 20)
-        #     grad = {}
-        #     for k, v in self.model.named_parameters():
-        #         grad[k + '.weight'] = v.data
-        #         grad[k + '.grad'] = v.data.grad
-        #     torch.save(grad, grad_file)
-
         if self.grad_clip:
             clip_grad_value_(self.model.parameters(), self.grad_clip)
         if self.grad_norm:
@@ -262,18 +239,6 @@ class BasicTrainer:
         self.optimizer.step()
         if self.lr_scheduler is not None:
             self.lr_scheduler.step_batch(batch_counter)
-
-        # # TODO delete
-        # print('save grad')
-        # grad_file = self.args.exp_dir + '/grad1_rank{}.pt'.format(self._rank)
-        # save_parameters(self.model, grad_file, with_grad=True, overwrite=False)
-        # if not os.path.exists(grad_file):
-        #     print('save grad', '-' * 20)
-        #     grad = {}
-        #     for k, v in self.model.named_parameters():
-        #         grad[k + '.weight'] = v.data
-        #         grad[k + '.grad'] = v.data.grad
-        #     torch.save(grad, grad_file)
 
         return out
 
