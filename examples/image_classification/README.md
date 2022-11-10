@@ -1,7 +1,7 @@
 # Image Classification
 This is a example of using lessdl to train image classification models. 
 Currently, it uses ImageNet ILSVRC2012 dataset from [PyTorch ImageNet Example](https://github.com/pytorch/examples/tree/main/imagenet) and the models used are from `torchvision.models`.
-The default learning rate scheduler is StepLR with initial lr=0.1 and it decays by a factor of 10 every 30 epochs.
+The default learning rate scheduler is StepLR with initial lr=0.1 and decays by a factor of 10 every 30 epochs.
 In the future, more datasets such as CIFAR and MNIST will be supported.
 
 ## Data
@@ -59,15 +59,15 @@ PYTHONPATH=. python -u main.py local/data/imagenet -a resnet50 --lr 0.01
 Top 1 and Top 5 accuracy on ImageNet ILSVRC2012 of different models:
 |   Model     | Acc@1     | Acc@5     | Epochs   | Learning Rate |
 |   :--:      | :--:      |   :--:    |   :--:   |   :--:        |
-| AlexNet     | 56.271999 | 78.982002 |   90     |  0.01         |
-| DenseNet161 | 78.020004 | 94.042007 |   90     |  0.1          |
-| VGG19       | 72.269997 | 90.940002 |   90     |  0.01         | 
-| VGG19_bn    | 74.251999 | 92.159996 |   90     |  0.1          |
-| ResNet18    | 69.753998 | 89.138    |   90     |  0.1          |
-| ResNet34    | 73.148003 | 91.350006 |   90     |  0.1          |
-| ResNet50    | 75.802002 | 92.82     |   90     |  0.1          | 
-| ResNet101   | 77.386002 | 93.663994 |   90     |  0.1          |
-| ResNet152   | 77.989998 | 93.877998 |   90     |  0.1          | 
+| AlexNet     | 56.272    | 78.982    |   90     |  0.01         |
+| DenseNet161 | 78.020    | 94.042    |   90     |  0.1          |
+| VGG19       | 72.269    | 90.940    |   90     |  0.01         | 
+| VGG19_bn    | 74.251    | 92.160    |   90     |  0.1          |
+| ResNet18    | 69.753    | 89.138    |   90     |  0.1          |
+| ResNet34    | 73.148    | 91.350    |   90     |  0.1          |
+| ResNet50    | 75.802    | 92.820    |   90     |  0.1          | 
+| ResNet101   | 77.386    | 93.664    |   90     |  0.1          |
+| ResNet152   | 77.989    | 93.878    |   90     |  0.1          | 
 
 
 ## Reference 
