@@ -21,16 +21,20 @@ def toscalar(value):
     if the value is int/float/torch.Tensor with dim 1, then convert it,
     else return None.
     """
+    
     if isinstance(value, (int, float)):
         return value
     if isinstance(value, torch.Tensor) and len(value.shape) == 0:
-        return value.item()
+        # Do not use value.item() as it will cause gpu to synchronize, which slows down training
+        return value.detach()
     elif isinstance(value, torch.Tensor):
         return None
     return None
 
 
 def format_scalar(value, ndigits=6):
+    # if isinstance(value, torch.Tensor):
+    #     value = value.item()
     return f'{value:.{ndigits}f}'.rstrip('0').rstrip('.')
 
 
@@ -643,6 +647,8 @@ class Checkpoint(Callback):
         self.stop_counter = status['stop_counter']
         self.best_metric = status['best_metric']
         self._checkpoint_prefix = status['checkpoints']
+        if self.callbacks is None or len(self.callbacks) == 0:
+            return
         for c, cs in zip_longest(self.callbacks, status['callbacks']):
             c.set_train_status(cs)
 
@@ -673,6 +679,9 @@ class Checkpoint(Callback):
             # print logs
             logger.info(f'stop counter: {self.stop_counter}/{self.earlystopping}')
 
+    def _get_save_path(self, prefix):
+        return prefix + '-model.pt', prefix + '-stat.pt'
+    
     def save_checkpoint(self, best=True):
         if self.rank is not None and self.rank > 0:
             # save only as first worker
@@ -681,21 +690,20 @@ class Checkpoint(Callback):
         # 如果有旧的, 先进行删除
         if len(self._checkpoint_prefix) >= self.last_to_keep and self.last_to_keep > 0:
             prefix = self._checkpoint_prefix.pop(0)
-            model_pt = prefix + '.pt'
-            model_status = prefix + '.json'
+            model_pt, model_status = self._get_save_path(prefix)
             logger.info(f'remove {model_pt} and {model_status}')
             os.remove(model_pt)
             os.remove(model_status)
 
         def save_with_prefix(prefix):
-            model_pt = prefix + '.pt'
-            model_status = prefix + '.json'
+            model_pt, model_status = self._get_save_path(prefix)
             logger.info(f'saving checkpoints to {model_pt} and {model_status}')
             state = self.model.state_dict()
             torch.save(state, model_pt)
             del state
-            with open(model_status, 'w') as wt:
-                json.dump(self.get_train_status(), wt)
+            with open(model_status, 'wb') as wt:
+                torch.save(self.get_train_status(), wt)
+                # json.dump(self.get_train_status(), wt)
 
         # 再把新的存储进去
         if self.last_to_keep > 0:
@@ -712,14 +720,14 @@ class Checkpoint(Callback):
         """
         if self.rank is not None and self.rank > 0:
             raise NotImplemented()
-        model_pt = prefix + '.pt'
-        model_status = prefix + '.json'
+        model_pt, model_status = self._get_save_path(prefix)
         logger.info(f'Load checkpoint from {model_pt}')
         state = torch.load(model_pt, map_location=map_location)
         self.model.load_state_dict(state)
         del state
-        with open(model_status) as f:
-            status = json.load(f)
+        with open(model_status, 'rb') as f:
+            # status = json.load(f)
+            status = torch.load(f)
             self.set_train_status(status)
 
     def parse_prefix_epoch_num(self, prefix):
@@ -738,15 +746,15 @@ class Checkpoint(Callback):
         last = None
         e = None
         for file in os.listdir(save_dir + '/checkpoints'):
-            if file.startswith('checkpoint-') and file.endswith('.pt'):
-                prefix = file.rstrip('.pt')
+            if file.startswith('checkpoint-') and file.endswith('-model.pt'):
+                prefix = file.rstrip('-model.pt')
                 c = self.parse_prefix_epoch_num(prefix)
                 if c is not None and (e is None or e < c):
                     e = c
                     last = os.path.join(save_dir, 'checkpoints/' + prefix)
         return last
 
-    def restore(self, best=False, last=False, save_dir=None, map_location=None):
+    def restore(self, best=False, last=False, prefix='', save_dir=None, map_location=None):
         """
         TODO: 没有保存optimizer, lrscheduler等. 将status改成torch.save等形式, 而不是json等, 便于保存tensor.
         """
@@ -756,9 +764,9 @@ class Checkpoint(Callback):
                 prefix = os.path.join(save_dir, 'best')
             else:
                 prefix = os.path.join(self.base_dir, 'best')
-        else:
+        elif last:
             prefix = self.find_last_checkpoint_prefix(save_dir or self.base_dir)
-        if not prefix or not os.path.exists(prefix + '.pt'):
+        if not prefix or not os.path.exists(prefix + '-model.pt'):
             logger.info('No checkpoint found')
             return None
         logger.warn('checkpoint只保存了模型参数, 没有保存optimizer,lr scheduler等, 恢复的训练状态不对!!!')

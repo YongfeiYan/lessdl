@@ -1,4 +1,5 @@
 .vscode
+lessdl.egg-info/
 __pycache__
 tasks
 pkgs

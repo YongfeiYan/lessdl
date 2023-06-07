@@ -12,6 +12,7 @@ from lessdl.utils import bool_flag
 from lessdl.data import get_dataset_cls
 from lessdl.model import get_model_cls, get_arch_arch
 from lessdl.training import get_trainer_cls, load_exp_args, load_args
+from lessdl.training.callbacks import Checkpoint
 from lessdl.predictor import get_predictor_cls
 
 logger = logging.getLogger()
@@ -135,23 +136,9 @@ def run_main(args, evaluate_best_ckpt=True, evaluate_only=False):
 
     set_random_state(args.seed)
 
-    # dataset
     dataset_cls = get_dataset_cls(args.dataset)
-    train_data = dataset_cls.build(args, args.train_split)
-    valid_data = dataset_cls.build(args, args.valid_split)
-
-    # model
-    model_cls = get_model_cls(args.model, args.arch)
-    if args.arch:
-        arch = get_arch_arch(args.arch)
-        arch(args)
-    
-    model = model_cls.build(args, train_data)
+    _, trainer, model = build_from_args(args)
     logger.info(f'Model:\n{model}')
-
-    # build training related objects(optimizer,lr_scheduler,callbacks) and train
-    trainer_cls = get_trainer_cls(args.trainer)
-    trainer = trainer_cls.build(args, model, train_data, valid_data)
     logger.info(f'Args: {args}')
     if args.restore_exp_dir:
         # restore last ckpt 
@@ -172,3 +159,46 @@ def run_main(args, evaluate_best_ckpt=True, evaluate_only=False):
         trainer.ckpt.restore(best=True)
     if evaluate_best_ckpt or evaluate_only:
         trainer.evaluate(test_data)
+
+
+def build_from_args(args, need_dataset=True, need_trainer=True, need_model=True):
+    """
+    Return:
+        ((train_data, val_data), trainer, model)
+    """
+    ds = (None, None)
+    trainer = None
+    model = None
+    # dataset
+    if need_dataset:
+        dataset_cls = get_dataset_cls(args.dataset)
+        train_data = dataset_cls.build(args, args.train_split)
+        valid_data = dataset_cls.build(args, args.valid_split)
+        ds = (train_data, valid_data)
+
+    # model
+    if need_model:
+        model_cls = get_model_cls(args.model, args.arch)
+        if args.arch:
+            arch = get_arch_arch(args.arch)
+            arch(args)
+        model = model_cls.build(args, train_data)
+
+    # build training related objects(optimizer,lr_scheduler,callbacks) and train
+    if need_trainer:
+        trainer_cls = get_trainer_cls(args.trainer)
+        trainer = trainer_cls.build(args, model, train_data, valid_data)
+
+    return ds, trainer, model
+
+
+def build_from_exp(exp_dir, best=False, last=False, ckpt_path_prefix=''):
+    parser = argparse.ArgumentParser(add_help=False)
+    args, _ = parser.parse_known_args()
+    load_exp_args(args, exp_dir, overwrite=True, argline=[])
+    (train_data, val_data), trainer, model = build_from_args(args)
+    ckpt_cb = Checkpoint(exp_dir, [])
+    ckpt_cb.set_model(model)
+    if best or last or ckpt_path_prefix:
+        ckpt_cb.restore(best=best, last=last, prefix=ckpt_path_prefix, map_location=next(model.parameters()).device)
+    return (train_data, val_data), trainer, model

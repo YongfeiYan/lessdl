@@ -1,5 +1,6 @@
 import torch
 import glob
+import importlib
 
 FALSY_STRINGS = {'off', 'false', '0'}
 TRUTHY_STRINGS = {'on', 'true', '1'}
@@ -70,3 +71,12 @@ def acquire_keys(d, keys, msg):
             raise RuntimeError('Key {} is not found, with message {}'.format(k, msg))
         r.append(d[k])
     return r[0] if single else r
+
+
+def import_class(class_pkg_name):
+    if '.' not in class_pkg_name:
+        return importlib.import_module(class_pkg_name)
+    pkg = '.'.join(class_pkg_name.split('.')[:-1])
+    pkg = importlib.import_module(pkg)
+    name = class_pkg_name.split('.')[-1]
+    return getattr(pkg, name)

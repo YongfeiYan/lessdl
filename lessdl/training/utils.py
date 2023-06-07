@@ -391,6 +391,8 @@ def get_optimizer(parameters, s):
             optim_params.pop('beta2', None)
     elif method == 'adamax':
         optim_fn = optim.Adamax
+    elif method == 'adamw':
+        optim_fn = optim.AdamW
     elif method == 'asgd':
         optim_fn = optim.ASGD
     elif method == 'rmsprop':
@@ -410,11 +412,17 @@ def get_optimizer(parameters, s):
         raise Exception('Unknown optimization method: "%s"' % method)
 
     # check that we give good parameters to the optimizer
-    expected_args = inspect.getargspec(optim_fn.__init__)[0]
+    # expected_args = inspect.getargspec(optim_fn.__init__)[0]
+    # assert expected_args[:2] == ['self', 'params']
+    # if not all(k in expected_args[2:] for k in optim_params.keys()):
+    #     raise Exception('Unexpected parameters: expected "%s", got "%s"' % (
+    #         str(expected_args[2:]), str(optim_params.keys())))
+    expected_args = inspect.signature(optim_fn.__init__)
+    expected_args = list(expected_args.parameters.keys())
     assert expected_args[:2] == ['self', 'params']
     if not all(k in expected_args[2:] for k in optim_params.keys()):
         raise Exception('Unexpected parameters: expected "%s", got "%s"' % (
-            str(expected_args[2:]), str(optim_params.keys())))
+            str(expected_args[2:]), str(optim_params.keys()))) 
 
     return optim_fn(parameters, **optim_params)
 

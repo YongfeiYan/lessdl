@@ -10,5 +10,9 @@ setup(
     description='A simple toolkit for deep learning.',
     packages=find_packages(include=['lessdl/**', 'examples/*', 'scripts/*']),
     tests_require=['pytest'],
+    install_requires=[
+        'overrides',
+        'scikit-learn',
+    ],
 )
 

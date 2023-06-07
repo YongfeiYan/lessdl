@@ -14,7 +14,7 @@ def register_loss(name):
 
 
 def get_loss_cls(name):
-    assert name in _LOSS, f'Loss {name} is not registered.'
+    assert name in _LOSS, f'Loss {name} is not registered, available {list(_LOSS.keys())}.'
     return _LOSS[name]
 
 
