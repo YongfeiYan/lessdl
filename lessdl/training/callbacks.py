@@ -6,12 +6,14 @@ from itertools import zip_longest
 import torch
 import json
 import torch.distributed as dist
+from contextlib import contextmanager
 
 from lessdl import bool_flag
 from lessdl.training.lr_scheduler import Scheduler
 from lessdl.metrics.classification import binary_ctr_metrics, binary_auc
 from lessdl.training import register_callback
 from lessdl.metrics.classification import accuracy
+from lessdl.training.ema import Ema
 
 logger = logging.getLogger()
 
@@ -1088,3 +1090,38 @@ class AccuracyMetricCallback(BaseCallback):
     @staticmethod
     def add_args(parser, arglist=None):
         parser.add_argument('--acc-cb-topk', type=str, default='1', help='e.g. 1,5 or 1')
+
+
+@register_callback('ema_cb')
+class EMACallback(BaseCallback):
+    def __init__(self, args=None, trainer=None, precursors=None, rank=None):
+        super().__init__(args, trainer, precursors, rank)
+        self.decay = args.ema_cb_decay
+        self.ema_model = None
+
+    def on_train_begin(self, logs=None):
+        len_p = len(list(self.model.parameters()))
+        len_np = len(list(self.model.named_parameters()))
+        assert len_p == len_np, 'Number of paramters {} is not equal to named paramters {}'.format(len_p, len_np)
+        logger.info('init EMA model with total {} paramters'.format(len_p))
+        self.ema_model = Ema(self.model)
+        return super().on_train_begin(logs)
+    
+    def on_train_batch_end(self, batch, logs=None):
+        self.ema_model(self.model)
+        return super().on_train_batch_end(batch, logs)
+    
+    def on_evaluate_begin(self):
+        logger.info('Set model parameters to EMA weights, num_batch_upates {}'.format(self.ema_model.num_updates))
+        self.ema_model.store(self.model.parameters())
+        self.ema_model.copy_to(self.model)
+        return super().on_evaluate_begin()
+    
+    def on_evaluate_end(self, eval_logs=None):
+        logger.info('Restore model parameters')
+        self.ema_model.restore(self.model.parameters())
+        return super().on_evaluate_end(eval_logs)
+    
+    @staticmethod
+    def add_args(parser, arglist=None):
+        parser.add_argument('--ema-cb-decay', type=float, default=0.9999)
