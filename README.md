@@ -112,6 +112,7 @@ Top 1 and top 5 accuracy of validation on ImageNet ILSVRC2012:
 
 ## NeRF 
 __Generated example__
+
 ![Lego.gif](https://user-images.githubusercontent.com/41781351/192831270-921aee61-2da1-472c-91f6-fa8513c243ce.gif)
 
 For more details, please refer to the [implementation](https://github.com/YongfeiYan/lessdl/blob/master/examples/nerf/README.md).
