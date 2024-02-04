@@ -110,6 +110,12 @@ Top 1 and top 5 accuracy of validation on ImageNet ILSVRC2012:
 [Here are training details](examples/image_classification/README.md)
 
 
+## NeRF 
+### Generated example
+![Lego.gif](https://user-images.githubusercontent.com/41781351/192831270-921aee61-2da1-472c-91f6-fa8513c243ce.gif)
+
+For more details, please refer to the [implementation](https://github.com/YongfeiYan/lessdl/blob/master/examples/nerf/README.md).
+
 # Reference
 - [fairseq](https://github.com/facebookresearch/fairseq)
 - [AllenNLP](https://allenai.org/allennlp)
